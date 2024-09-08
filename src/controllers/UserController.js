@@ -50,6 +50,15 @@ class UserController {
             next(err)
         }
     }
+
+    // [GET] /user/:user_id
+    async getUserById(req, res, next) {
+        try {
+            return res.json({ user: req.params.user_id })
+        } catch (err) {
+            next(err)
+        }
+    }
 }
 
 module.exports = new UserController()
