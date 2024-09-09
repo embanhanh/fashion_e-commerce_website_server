@@ -14,9 +14,12 @@ const OrderProducts = new Schema(
         productsPrice: { type: Number, required: true },
         shippingPrice: { type: Number, required: true },
         totalPrice: { type: Number, required: true },
-        status: { type: String, required: true },
+        status: { type: String, enum: ['Pending', 'Processing', 'Shipped', 'Delivered', 'Cancelled'], default: 'Pending' },
         shippingAddress: { type: mongoose.Schema.Types.ObjectId, ref: 'address', required: true },
         user: { type: mongoose.Schema.Types.ObjectId, ref: 'users', required: true },
+        paidAt: { type: Date, default: null },
+        deliveredAt: { type: Date, default: null },
+        voucher: { type: mongoose.Schema.Types.ObjectId, ref: 'vouchers', default: null },
     },
     { timestamps: true }
 )

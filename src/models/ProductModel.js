@@ -6,15 +6,20 @@ const Schema = mongoose.Schema
 
 const Product = new Schema(
     {
-        name: { type: String, required: true, unique: true },
-        description: { type: String, required: true },
+        name: { type: String, required: true },
+        description: { type: String },
         slug: { type: String, slug: 'name', unique: true },
-        urlImage: { type: String, required: true },
-        price: { type: Number, required: true },
-        count: { type: Number, required: true },
-        type: { type: String, required: true },
-        rating: { type: Number, required: true },
-        category: { type: Schema.Types.ObjectId, ref: 'category', require: true },
+        urlImage: { type: String },
+        brand: { type: String },
+        material: { type: String },
+        originalPrice: { type: Number, required: true },
+        stockQuantity: { type: Number, required: true },
+        rating: { type: Number, required: true, default: 0 },
+        isFeatured: { type: Boolean, default: false }, // Sản phẩm nổi bật
+        isActive: { type: Boolean, default: true }, // Trạng thái sản phẩm
+        discount: { type: Number, default: 0 }, // Phần trăm giảm giá
+        categoris: [{ type: Schema.Types.ObjectId, ref: 'category', require: true }],
+        variants: [{ type: Schema.Types.ObjectId, ref: 'product_variant' }], // Liên kết tới bảng ProductVariant
     },
     { timestamps: true }
 )
