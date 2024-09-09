@@ -14,6 +14,7 @@ const Product = new Schema(
         count: { type: Number, required: true },
         type: { type: String, required: true },
         rating: { type: Number, required: true },
+        category: { type: Schema.Types.ObjectId, ref: 'category', require: true },
     },
     { timestamps: true }
 )

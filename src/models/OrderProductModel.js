@@ -16,6 +16,7 @@ const OrderProducts = new Schema(
         totalPrice: { type: Number, required: true },
         status: { type: String, required: true },
         shippingAddress: { type: mongoose.Schema.Types.ObjectId, ref: 'address', required: true },
+        user: { type: mongoose.Schema.Types.ObjectId, ref: 'users', required: true },
     },
     { timestamps: true }
 )
