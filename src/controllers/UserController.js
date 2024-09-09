@@ -51,10 +51,31 @@ class UserController {
         }
     }
 
-    // [GET] /user/:user_id
-    async getUserById(req, res, next) {
+    // [GET] /user/purchase
+    async getPurchase(req, res, next) {
         try {
-            return res.json({ user: req.params.user_id })
+        } catch (err) {
+            next(err)
+        }
+    }
+
+    // [GET] /user/account/profile
+    async getProfileUser(req, res, next) {
+        try {
+        } catch (err) {
+            next(err)
+        }
+    }
+    // [GET] /user/account/address
+    async getAddressUser(req, res, next) {
+        try {
+        } catch (err) {
+            next(err)
+        }
+    }
+    // [GET] /user/account/payment
+    async getPaymentUser(req, res, next) {
+        try {
         } catch (err) {
             next(err)
         }

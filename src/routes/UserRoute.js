@@ -6,6 +6,9 @@ const userController = require('../controllers/UserController')
 
 router.post('/login', userController.login)
 router.post('/register', userController.register)
-router.get('/:user_id', authenticateToken, userController.getUserById)
+router.get('/account/profile', authenticateToken, userController.getProfileUser)
+router.get('/account/address', authenticateToken, userController.getAddressUser)
+router.get('/account/payment', authenticateToken, userController.getPaymentUser)
+router.get('/purchase', authenticateToken, userController.getPurchase)
 
 module.exports = router
