@@ -18,8 +18,8 @@ const Product = new Schema(
         isFeatured: { type: Boolean, default: false }, // Sản phẩm nổi bật
         isActive: { type: Boolean, default: true }, // Trạng thái sản phẩm
         discount: { type: Number, default: 0 }, // Phần trăm giảm giá
-        categoris: [{ type: Schema.Types.ObjectId, ref: 'category', require: true }],
-        variants: [{ type: Schema.Types.ObjectId, ref: 'product_variant' }], // Liên kết tới bảng ProductVariant
+        categories: [{ category: { type: Schema.Types.ObjectId, ref: 'category', require: true } }],
+        variants: [{ variant: { type: Schema.Types.ObjectId, ref: 'product_variant' } }], // Liên kết tới bảng ProductVariant
     },
     { timestamps: true }
 )

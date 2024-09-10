@@ -6,7 +6,7 @@ const OrderProducts = new Schema(
     {
         products: [
             {
-                product: { type: mongoose.Schema.Types.ObjectId, ref: 'products', required: true },
+                product: { type: mongoose.Schema.Types.ObjectId, ref: 'product_variant', required: true },
                 quantity: { type: Number, required: true },
             },
         ],
@@ -19,7 +19,7 @@ const OrderProducts = new Schema(
         user: { type: mongoose.Schema.Types.ObjectId, ref: 'users', required: true },
         paidAt: { type: Date, default: null },
         deliveredAt: { type: Date, default: null },
-        voucher: { type: mongoose.Schema.Types.ObjectId, ref: 'vouchers', default: null },
+        vouchers: [{ voucher: { type: mongoose.Schema.Types.ObjectId, ref: 'vouchers' } }],
     },
     { timestamps: true }
 )

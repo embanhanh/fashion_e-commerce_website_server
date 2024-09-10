@@ -18,7 +18,7 @@ const VoucherSchema = new Schema(
         used: { type: Number, default: 0 }, // Số lần đã sử dụng
         validFrom: { type: Date, required: true }, // Ngày bắt đầu có hiệu lực
         validUntil: { type: Date, required: true }, // Ngày hết hạn
-        applicableProducts: [{ type: Schema.Types.ObjectId, ref: 'products' }], // Áp dụng cho các sản phẩm cụ thể
+        applicableProducts: [{ product: { type: Schema.Types.ObjectId, ref: 'products' } }], // Áp dụng cho các sản phẩm cụ thể
         isActive: { type: Boolean, default: true }, // Trạng thái voucher (còn hiệu lực hay không)
     },
     { timestamps: true }
