@@ -1,9 +1,12 @@
+const bcrypt = require('bcrypt')
+const jwt = require('jsonwebtoken')
+
 const User = require('../models/UserModel')
 const Address = require('../models/AddressModel')
 const OerderProduct = require('../models/OrderProductModel')
-const bcrypt = require('bcrypt')
-const jwt = require('jsonwebtoken')
 const OrderProductModel = require('../models/OrderProductModel')
+
+const { verifyFirebaseToken, gennerateAccessToken } = require('../util/TokenUtil')
 
 class UserController {
     // [POST] /user/login
@@ -11,23 +14,51 @@ class UserController {
         try {
             const { email, password } = req.body
 
+            if (!email || !password) {
+                return res.status(400).json({ message: 'Không có tài khoản' })
+            }
             // Tìm user theo email
             const user = await User.findOne({ email })
             if (!user) {
-                return res.status(400).json({ message: 'User unavailable' })
+                return res.status(400).json({ message: 'Tài khoản hoặc mật khẩu không chính xác, vui lòng thử lại' })
             }
 
             // Kiểm tra password
             const isMatch = await bcrypt.compare(password, user.password)
             if (!isMatch) {
-                return res.status(400).json({ message: 'Invalid password' })
+                return res.status(400).json({ message: 'Tài khoản hoặc mật khẩu không chính xác, vui lòng thử lại' })
             }
 
             // Tạo token JWT
-            const token = jwt.sign({ id: user._id }, 'access_token', { expiresIn: '1h' })
+            const token = jwt.sign({ data: user }, 'access_token', { expiresIn: '1h' })
 
             // Trả về token và thông tin user
             return res.status(200).json({ token, user: user })
+        } catch (err) {
+            next(err)
+        }
+    }
+    // [POST] /user/login/facebook || /user/login/google
+    async loginWithFirebase(req, res, next) {
+        try {
+            const { token } = req.body
+
+            const result = await verifyFirebaseToken(token)
+            if (result.success) {
+                let user = await User.findOne({ email: result.user.uid })
+                if (!user) {
+                    user = await User.create({
+                        email: result.user.uid,
+                        name: result.user.name,
+                        password: '',
+                        urlImage: result.user.picture,
+                    })
+                }
+                const jwtToken = await gennerateAccessToken({ data: user })
+                return res.status(200).json({ token: jwtToken, user: user })
+            } else {
+                return res.status(400).json({ message: 'Không thể đăng nhập, vui lòng thử lại' })
+            }
         } catch (err) {
             next(err)
         }
@@ -40,15 +71,13 @@ class UserController {
 
             let user = await User.findOne({ email })
             if (user) {
-                return res.status(400).json({ message: 'Email already exists' })
+                return res.status(400).json({ message: 'Email đã tồn tại, vui lòng nhập lại email' })
             }
 
             user = new User({ email, password })
             await user.save()
 
-            const token = jwt.sign({ id: user._id }, 'access_token', { expiresIn: '1h' })
-
-            return res.status(201).json({ token, user: { id: user._id, email: user.email } })
+            return res.status(201).json({ user: { id: user._id, email: user.email } })
         } catch (err) {
             next(err)
         }

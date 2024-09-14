@@ -4,6 +4,8 @@ const { authenticateToken } = require('../middlewares/AuthMiddleware')
 
 const userController = require('../controllers/UserController')
 
+router.post('/login/facebook', userController.loginWithFirebase)
+router.post('/login/google', userController.loginWithFirebase)
 router.post('/login', userController.login)
 router.post('/register', userController.register)
 router.get('/account/profile', authenticateToken, userController.getProfileUser)
