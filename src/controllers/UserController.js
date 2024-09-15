@@ -57,7 +57,7 @@ class UserController {
                 const jwtToken = await gennerateAccessToken({ data: user })
                 return res.status(200).json({ token: jwtToken, user: user })
             } else {
-                return res.status(400).json({ message: 'Không thể đăng nhập, vui lòng thử lại' })
+                return res.status(400).json({ message: 'Đã có lỗi xảy ra trong quá trinh đăng nhập, vui lòng thử lại' })
             }
         } catch (err) {
             next(err)
@@ -68,6 +68,10 @@ class UserController {
     async register(req, res, next) {
         try {
             const { email, password } = req.body
+
+            if (!email || !password) {
+                return res.status(400).json({ message: 'Vui lòng nhập đầy đủ thông tin' })
+            }
 
             let user = await User.findOne({ email })
             if (user) {

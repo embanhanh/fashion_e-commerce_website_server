@@ -7,13 +7,13 @@ const Schema = mongoose.Schema
 const Product = new Schema(
     {
         name: { type: String, required: true },
-        description: { type: String },
+        description: { type: String, default: '' },
         slug: { type: String, slug: 'name', unique: true },
-        urlImage: { type: String },
-        brand: { type: String },
-        material: { type: String },
-        originalPrice: { type: Number, required: true },
-        stockQuantity: { type: Number, required: true },
+        urlImage: { type: String, default: '' },
+        brand: { type: String, default: '' },
+        material: { type: String, default: '' },
+        originalPrice: { type: Number, required: true, default: 0 },
+        stockQuantity: { type: Number, required: true, default: 0 },
         rating: { type: Number, required: true, default: 0 },
         isFeatured: { type: Boolean, default: false }, // Sản phẩm nổi bật
         isActive: { type: Boolean, default: true }, // Trạng thái sản phẩm

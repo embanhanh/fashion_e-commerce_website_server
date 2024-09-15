@@ -8,13 +8,13 @@ const Schema = mongoose.Schema
 const User = new Schema(
     {
         email: { type: String, required: true, unique: true },
-        password: { type: String },
-        name: { type: String },
-        gender: { type: String },
-        birthday: { type: Date },
-        phone: { type: String },
-        urlImage: { type: String },
-        role: { type: String },
+        password: { type: String, default: '' },
+        name: { type: String, default: '' },
+        gender: { type: String, default: '' },
+        birthday: { type: Date, default: null },
+        phone: { type: String, default: '' },
+        urlImage: { type: String, default: '' },
+        role: { type: String, default: 'user' },
     },
     { timestamps: true }
 )

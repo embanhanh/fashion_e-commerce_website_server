@@ -12,7 +12,7 @@ const OrderProducts = new Schema(
         ],
         paymentMethod: { type: String, required: true },
         productsPrice: { type: Number, required: true },
-        shippingPrice: { type: Number, required: true },
+        shippingPrice: { type: Number, required: true, default: 0 },
         totalPrice: { type: Number, required: true },
         status: { type: String, enum: ['Pending', 'Processing', 'Shipped', 'Delivered', 'Cancelled'], default: 'Pending' },
         shippingAddress: { type: mongoose.Schema.Types.ObjectId, ref: 'address', required: true },
