@@ -9,7 +9,7 @@ const Product = new Schema(
         name: { type: String, required: true },
         description: { type: String, default: '' },
         slug: { type: String, slug: 'name', unique: true },
-        urlImage: { type: String, default: '' },
+        urlImage: [{ type: String, default: '' }],
         brand: { type: String, default: '' },
         material: { type: String, default: '' },
         originalPrice: { type: Number, required: true, default: 0 },
@@ -20,6 +20,8 @@ const Product = new Schema(
         discount: { type: Number, default: 0 }, // Phần trăm giảm giá
         categories: [{ category: { type: Schema.Types.ObjectId, ref: 'category', require: true } }],
         variants: [{ variant: { type: Schema.Types.ObjectId, ref: 'product_variant' } }], // Liên kết tới bảng ProductVariant
+        minOrderQuantity: { type: Number, default: 1 }, // Thêm mới
+        maxOrderQuantity: { type: Number, default: 100 },
     },
     { timestamps: true }
 )

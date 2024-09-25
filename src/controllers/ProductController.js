@@ -41,6 +41,8 @@ class ProductController {
                 discount,
                 categories,
                 variants,
+                minOrderQuantity,
+                maxOrderQuantity,
             } = req.body
 
             const newProduct = new Product({
@@ -57,26 +59,30 @@ class ProductController {
                 isActive,
                 discount,
                 categories,
+                minOrderQuantity,
+                maxOrderQuantity,
             })
 
             const savedProduct = await newProduct.save()
 
-            const productVariants = await Promise.all(
-                variants.map(async (variant) => {
-                    const newVariant = new ProductVariant({
-                        product: savedProduct._id,
-                        size: variant.size,
-                        color: variant.color,
-                        stockQuantity: variant.stockQuantity,
-                        imageUrl: variant.imageUrl,
-                        additionalPrice: variant.additionalPrice,
+            if (variants && variants.length > 0) {
+                const productVariants = await Promise.all(
+                    variants.map(async (variant) => {
+                        const newVariant = new ProductVariant({
+                            product: savedProduct._id,
+                            size: variant.size,
+                            color: variant.color,
+                            stockQuantity: variant.stockQuantity,
+                            imageUrl: variant.imageUrl,
+                            additionalPrice: variant.additionalPrice,
+                        })
+                        return await newVariant.save()
                     })
-                    return await newVariant.save()
-                })
-            )
+                )
 
-            savedProduct.variants = productVariants.map((variant) => variant._id)
-            await savedProduct.save()
+                savedProduct.variants = productVariants.map((variant) => variant._id)
+                await savedProduct.save()
+            }
 
             res.status(201).json({
                 message: 'Product and variants created successfully',
