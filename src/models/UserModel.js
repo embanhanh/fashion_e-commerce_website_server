@@ -1,5 +1,5 @@
 const mongoose = require('mongoose')
-var slug = require('mongoose-slug-generator')
+const slug = require('mongoose-slug-updater')
 const bcrypt = require('bcrypt')
 mongoose.plugin(slug)
 

@@ -48,7 +48,6 @@ class ProductController {
             const newProduct = new Product({
                 name,
                 description,
-                slug,
                 urlImage,
                 brand,
                 material,
@@ -74,7 +73,7 @@ class ProductController {
                             color: variant.color,
                             stockQuantity: variant.stockQuantity,
                             imageUrl: variant.imageUrl,
-                            additionalPrice: variant.additionalPrice,
+                            price: variant.price,
                         })
                         return await newVariant.save()
                     })
@@ -85,9 +84,8 @@ class ProductController {
             }
 
             res.status(201).json({
-                message: 'Product and variants created successfully',
+                message: 'Tạo sản phẩm thành công',
                 product: savedProduct,
-                variants: productVariants,
             })
         } catch (err) {
             next(err)
