@@ -5,7 +5,7 @@ class ProductController {
     // [GET] /product
     async getAllProduct(req, res, next) {
         try {
-            const products = await Product.find()
+            const products = await Product.find().populate('categories').populate('variants')
             res.status(200).json(products)
         } catch (err) {
             next(err)

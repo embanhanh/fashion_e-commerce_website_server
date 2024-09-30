@@ -19,7 +19,7 @@ const Product = new Schema(
         isActive: { type: Boolean, default: true }, // Trạng thái sản phẩm
         discount: { type: Number, default: 0 }, // Phần trăm giảm giá
         categories: [{ type: Schema.Types.ObjectId, ref: 'category' }],
-        variants: [{ variant: { type: Schema.Types.ObjectId, ref: 'product_variant' } }], // Liên kết tới bảng ProductVariant
+        variants: [{ type: Schema.Types.ObjectId, ref: 'product_variant' }], // Liên kết tới bảng ProductVariant
         minOrderQuantity: { type: Number, default: 1 }, // Thêm mới
         maxOrderQuantity: { type: Number, default: 100 },
     },
