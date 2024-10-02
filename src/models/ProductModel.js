@@ -22,6 +22,7 @@ const Product = new Schema(
         variants: [{ type: Schema.Types.ObjectId, ref: 'product_variant' }], // Liên kết tới bảng ProductVariant
         minOrderQuantity: { type: Number, default: 1 }, // Thêm mới
         maxOrderQuantity: { type: Number, default: 100 },
+        soldQuantity: { type: Number, default: 0 },
     },
     { timestamps: true }
 )
