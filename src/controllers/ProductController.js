@@ -1,12 +1,146 @@
 const Product = require('../models/ProductModel')
 const ProductVariant = require('../models/ProductVariantModel')
+const mongoose = require('mongoose')
 
 class ProductController {
     // [GET] /product
     async getAllProduct(req, res, next) {
         try {
-            const products = await Product.find().populate('categories').populate('variants')
-            res.status(200).json(products)
+            const { page = 1, limit = 12, category, priceRange, color, size, sort, stockQuantity, soldQuantity, search } = req.query
+            const pipeline = []
+
+            // Stage 1: Match products based on category and price
+            const match = {}
+            if (search) {
+                match.name = { $regex: search, $options: 'i' }
+            }
+            if (category && category.length > 0) {
+                match.categories = {
+                    $in: category
+                        .map((id) => {
+                            try {
+                                return new mongoose.Types.ObjectId(id)
+                            } catch (error) {
+                                console.error(`Invalid ObjectId: ${id}`)
+                                return null
+                            }
+                        })
+                        .filter((id) => id !== null),
+                }
+            }
+            if (priceRange) {
+                try {
+                    const { min, max } = priceRange
+                    if (min || max) {
+                        match.originalPrice = {}
+                        if (min) match.originalPrice.$gte = Number(min)
+                        if (max) match.originalPrice.$lte = Number(max)
+                    }
+                } catch (error) {
+                    console.error('Error parsing priceRange:', error)
+                }
+            }
+            if (stockQuantity) {
+                try {
+                    const { min, max } = stockQuantity
+                    if (min || max) {
+                        match.stockQuantity = {}
+                        if (min) match.stockQuantity.$gte = Number(min)
+                        if (max) match.stockQuantity.$lte = Number(max)
+                    }
+                } catch (error) {
+                    console.error('Error parsing stockQuantity:', error)
+                }
+            }
+
+            // if (soldQuantity) {
+            //     try {
+            //         const { min, max } = soldQuantity
+            //         if (min || max) {
+            //             match.soldQuantity = {}
+            //             if (min) match.soldQuantity.$gte = Number(min)
+
+            //             if (max) match.soldQuantity.$lte = Number(max)
+            //         }
+            //     } catch (error) {
+            //         console.error('Error parsing stockQuantity:', error)
+            //     }
+            // }
+
+            if (Object.keys(match).length > 0) {
+                pipeline.push({ $match: match })
+            }
+
+            // Stage 2: Lookup variants
+            pipeline.push({
+                $lookup: {
+                    from: 'product_variants',
+                    localField: 'variants',
+                    foreignField: '_id',
+                    as: 'variantsData',
+                },
+            })
+
+            // Stage 3: Filter by color and size
+            if (color || size) {
+                pipeline.push({
+                    $match: {
+                        variantsData: {
+                            $elemMatch: {
+                                ...(color && { color: { $in: color.map((c) => new RegExp(c, 'i')) } }),
+                                ...(size && { size: { $in: size } }),
+                            },
+                        },
+                    },
+                })
+            }
+
+            // Stage 4: Sort
+            if (sort) {
+                let sortStage = {}
+                switch (sort) {
+                    case 'priceAsc':
+                        sortStage = { $sort: { originalPrice: 1 } }
+                        break
+                    case 'priceDesc':
+                        sortStage = { $sort: { originalPrice: -1 } }
+                        break
+                    case 'newest':
+                        sortStage = { $sort: { createdAt: -1 } }
+                        break
+                    case 'popular':
+                        sortStage = { $sort: { rating: -1 } }
+                        break
+                    case 'stockAsc':
+                        sortStage = { $sort: { stockQuantity: 1 } }
+                        break
+                    case 'stockDesc':
+                        sortStage = { $sort: { stockQuantity: -1 } }
+                        break
+                }
+                pipeline.push(sortStage)
+            }
+
+            // Stage 5: Pagination
+            pipeline.push({ $skip: (Number(page) - 1) * Number(limit) })
+            pipeline.push({ $limit: Number(limit) })
+
+            // Execute the aggregation
+            const products = await Product.aggregate(pipeline)
+
+            // Get total count for pagination
+            const countPipeline = [...pipeline]
+            countPipeline.pop() // Remove $limit
+            countPipeline.pop() // Remove $skip
+            countPipeline.push({ $count: 'total' })
+            const totalResult = await Product.aggregate(countPipeline)
+            const total = totalResult.length > 0 ? totalResult[0].total : 0
+
+            res.status(200).json({
+                products,
+                totalPages: Math.ceil(total / Number(limit)),
+                currentPage: Number(page),
+            })
         } catch (err) {
             next(err)
         }
