@@ -334,6 +334,19 @@ class ProductController {
             next(err)
         }
     }
+    // [DELETE] /product/delete/:product_name
+    async deleteProduct(req, res, next) {
+        const { product_name } = req.params
+        try {
+            const deletedProduct = await Product.delete({ slug: product_name })
+            if (!deletedProduct) {
+                return res.status(404).json({ message: 'Product not found' })
+            }
+            return res.status(200).json({ message: 'Xóa sản phẩm thành công' })
+        } catch (err) {
+            next(err)
+        }
+    }
 }
 
 module.exports = new ProductController()
