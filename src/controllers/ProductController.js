@@ -157,7 +157,14 @@ class ProductController {
     async getProductBySlug(req, res, next) {
         try {
             const slug = req.params.product_name
-            const product = Product.findOne({ slug }).populate('categories.category').populate('variants.variant')
+            const product = await Product.findOne({ slug })
+                .populate('variants')
+                .populate({
+                    path: 'categories',
+                    populate: {
+                        path: 'parentCategory',
+                    },
+                })
             if (!product) {
                 return res.status(404).json({ message: 'No product founded.' })
             }
@@ -235,7 +242,7 @@ class ProductController {
     }
     // [PUT] /product/edit/:product_name
     async updateProduct(req, res, next) {
-        const { productId } = req.params
+        const { product_name } = req.params
         try {
             const {
                 name,
@@ -251,14 +258,15 @@ class ProductController {
                 discount,
                 categories,
                 variants,
+                minOrderQuantity,
+                maxOrderQuantity,
             } = req.body
 
-            const updatedProduct = await Product.findByIdAndUpdate(
-                productId,
+            const updatedProduct = await Product.findOneAndUpdate(
+                { slug: product_name },
                 {
                     name,
                     description,
-                    slug,
                     urlImage,
                     brand,
                     material,
@@ -269,6 +277,8 @@ class ProductController {
                     isActive,
                     discount,
                     categories,
+                    minOrderQuantity,
+                    maxOrderQuantity,
                 },
                 { new: true }
             )
@@ -287,18 +297,18 @@ class ProductController {
                                 color: variant.color,
                                 stockQuantity: variant.stockQuantity,
                                 imageUrl: variant.imageUrl,
-                                additionalPrice: variant.additionalPrice,
+                                price: variant.price,
                             },
                             { new: true }
                         )
                     } else {
                         const newVariant = new ProductVariant({
-                            product: productId,
+                            product: updatedProduct._id,
                             size: variant.size,
                             color: variant.color,
                             stockQuantity: variant.stockQuantity,
                             imageUrl: variant.imageUrl,
-                            additionalPrice: variant.additionalPrice,
+                            price: variant.price,
                         })
                         return await newVariant.save()
                     }
@@ -306,11 +316,20 @@ class ProductController {
             )
             const existingVariantIds = updatedVariants.map((variant) => variant._id)
             await ProductVariant.deleteMany({
-                product: productId,
+                product: updatedProduct._id,
                 _id: { $nin: existingVariantIds },
             })
             updatedProduct.variants = updatedVariants.map((variant) => variant._id)
             await updatedProduct.save()
+            const product = await Product.findById(updatedProduct._id)
+                .populate('variants')
+                .populate({
+                    path: 'categories',
+                    populate: {
+                        path: 'parentCategory',
+                    },
+                })
+            return res.status(200).json({ message: 'Cập nhật sản phẩm thành công', product })
         } catch (err) {
             next(err)
         }
