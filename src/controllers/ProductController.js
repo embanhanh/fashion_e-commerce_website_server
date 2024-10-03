@@ -95,15 +95,23 @@ class ProductController {
                 })
             }
 
+            pipeline.push({
+                $addFields: {
+                    finalPrice: {
+                        $multiply: ['$originalPrice', { $subtract: [1, { $divide: ['$discount', 100] }] }],
+                    },
+                },
+            })
+
             // Stage 4: Sort
             if (sort) {
                 let sortStage = {}
                 switch (sort) {
                     case 'priceAsc':
-                        sortStage = { $sort: { originalPrice: 1 } }
+                        sortStage = { $sort: { finalPrice: 1 } }
                         break
                     case 'priceDesc':
-                        sortStage = { $sort: { originalPrice: -1 } }
+                        sortStage = { $sort: { finalPrice: -1 } }
                         break
                     case 'newest':
                         sortStage = { $sort: { createdAt: -1 } }
