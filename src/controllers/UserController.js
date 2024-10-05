@@ -6,7 +6,7 @@ const Address = require('../models/AddressModel')
 const OerderProduct = require('../models/OrderProductModel')
 const OrderProductModel = require('../models/OrderProductModel')
 
-const { verifyFirebaseToken, gennerateAccessToken } = require('../util/TokenUtil')
+const { verifyFirebaseToken, gennerateAccessToken, gennerateRefreshToken } = require('../util/TokenUtil')
 
 class UserController {
     // [POST] /user/login
@@ -30,10 +30,11 @@ class UserController {
             }
 
             // Tạo token JWT
-            const token = jwt.sign({ data: user }, 'access_token', { expiresIn: '1h' })
+            const accessToken = await gennerateAccessToken({ data: user })
+            const refreshToken = await gennerateRefreshToken({ data: user })
 
             // Trả về token và thông tin user
-            return res.status(200).json({ token, user: user })
+            return res.status(200).json({ token: accessToken, refreshToken: refreshToken, user: user })
         } catch (err) {
             next(err)
         }
@@ -55,12 +56,31 @@ class UserController {
                     })
                 }
                 const jwtToken = await gennerateAccessToken({ data: user })
-                return res.status(200).json({ token: jwtToken, user: user })
+                const refreshToken = await gennerateRefreshToken({ data: user })
+                return res.status(200).json({ token: jwtToken, refreshToken: refreshToken, user: user })
             } else {
                 return res.status(400).json({ message: 'Đã có lỗi xảy ra trong quá trinh đăng nhập, vui lòng thử lại' })
             }
         } catch (err) {
             next(err)
+        }
+    }
+
+    async refreshToken(req, res, next) {
+        try {
+            const { refreshToken } = req.body
+            if (!refreshToken) {
+                return res.status(401).json({ message: 'Refresh token is required' })
+            }
+
+            jwt.verify(refreshToken, 'refresh_token', (err, user) => {
+                if (err) return res.status(403).json({ message: 'Invalid refresh token' })
+
+                const accessToken = gennerateAccessToken({ data: user.data })
+                res.json({ accessToken })
+            })
+        } catch (error) {
+            next(error)
         }
     }
 

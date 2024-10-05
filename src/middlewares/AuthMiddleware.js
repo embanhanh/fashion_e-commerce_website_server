@@ -8,7 +8,12 @@ const authenticateToken = (req, res, next) => {
     const accessToken = token.split(' ')[1]
 
     jwt.verify(accessToken, 'access_token', (err, user) => {
-        if (err) return res.sendStatus(403)
+        if (err) {
+            if (err.name === 'TokenExpiredError') {
+                return res.status(401).json({ message: 'Token expired' })
+            }
+            return res.sendStatus(403)
+        }
         req.user = user
         next()
     })
