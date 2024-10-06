@@ -5,10 +5,17 @@ class CartController {
     async getCart(req, res, next) {
         try {
             const userId = req.user.data._id
-            const cart = await Cart.findOne({ user: userId }).populate({
+            let cart = await Cart.findOne({ user: userId }).populate({
                 path: 'items.variant',
                 populate: { path: 'product' },
             })
+            if (!cart) {
+                cart = new Cart({
+                    user: userId,
+                    items: [],
+                })
+                await cart.save()
+            }
             res.status(200).json(cart)
         } catch (err) {
             next(err)
