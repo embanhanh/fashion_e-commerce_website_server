@@ -153,7 +153,7 @@ class UserController {
     async getProfileUser(req, res, next) {
         try {
             const user = req.user
-            const idUser = user._id
+            const idUser = user.data._id
             const userFind = User.findOne({ _id: idUser })
             if (!userFind) {
                 return res.status(404).json({ message: 'No user founded.' })
@@ -163,13 +163,84 @@ class UserController {
             next(err)
         }
     }
+    // [PUT] /user/account/profile/edit
+    async updateProfileUser(req, res, next) {
+        try {
+            const user = req.user
+            const idUser = user.data._id
+            const { name, gender, birthday, phone, urlImage } = req.body
+            const userFind = await User.findOne({ _id: idUser })
+            if (!userFind) {
+                return res.status(404).json({ message: 'No user founded.' })
+            }
+            userFind.name = name
+            userFind.gender = gender
+            userFind.birthday = birthday
+            userFind.phone = phone
+            userFind.urlImage = urlImage
+            await userFind.save()
+            return res.status(200).json(userFind)
+        } catch (err) {
+            next(err)
+        }
+    }
     // [GET] /user/account/address
     async getAddressUser(req, res, next) {
         try {
             const user = req.user
-            const idUser = user._id
+            const idUser = user.data._id
             const address = await Address.find({ user: idUser }).populate('user')
             return res.status(200).json(address)
+        } catch (err) {
+            next(err)
+        }
+    }
+    // [POST] /user/account/address/create
+    async createAddressUser(req, res, next) {
+        try {
+            const { _id: userId } = req.user.data
+            const { name, phone, location, type, default: isDefault } = req.body
+
+            const address = await Address.create({
+                user: userId,
+                name,
+                phone,
+                location,
+                type,
+                default: isDefault,
+            })
+
+            return res.status(201).json(address)
+        } catch (err) {
+            next(err)
+        }
+    }
+    // [PUT] /user/account/address/update/:id
+    async updateAddressUser(req, res, next) {
+        try {
+            const { _id: userId } = req.user.data
+            const { name, phone, location, type, default: isDefault } = req.body
+            const id = req.params.id
+            const address = await Address.findByIdAndUpdate(id, {
+                user: userId,
+                name,
+                phone,
+                location,
+                type,
+                default: isDefault,
+            })
+
+            return res.status(200).json(address)
+        } catch (err) {
+            next(err)
+        }
+    }
+    // [DELETE] /user/account/address/delete/:id
+    async deleteAddressUser(req, res, next) {
+        try {
+            const id = req.params.id
+            await Address.findOneAndDelete({ _id: id })
+            return res.status(200).json({ message: 'Địa chỉ đã được xóa thành công' })
         } catch (err) {
             next(err)
         }
