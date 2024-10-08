@@ -46,10 +46,11 @@ class UserController {
 
             const result = await verifyFirebaseToken(token)
             if (result.success) {
-                let user = await User.findOne({ email: result.user.uid })
+                let user = await User.findOne({ id: result.user.uid })
                 if (!user) {
                     user = await User.create({
-                        email: result.user.uid,
+                        id: result.user.uid,
+                        email: result.user.email,
                         name: result.user.name,
                         password: '',
                         urlImage: result.user.picture,
@@ -65,7 +66,7 @@ class UserController {
             next(err)
         }
     }
-
+    // [POST] /user/refresh-token
     async refreshToken(req, res, next) {
         try {
             const { refreshToken } = req.body
@@ -73,10 +74,10 @@ class UserController {
                 return res.status(401).json({ message: 'Refresh token is required' })
             }
 
-            jwt.verify(refreshToken, 'refresh_token', (err, user) => {
+            jwt.verify(refreshToken, 'refresh_token', async (err, user) => {
                 if (err) return res.status(403).json({ message: 'Invalid refresh token' })
 
-                const accessToken = gennerateAccessToken({ data: user.data })
+                const accessToken = await gennerateAccessToken({ data: user.data })
                 res.json({ accessToken })
             })
         } catch (error) {
@@ -154,7 +155,7 @@ class UserController {
         try {
             const user = req.user
             const idUser = user.data._id
-            const userFind = User.findOne({ _id: idUser })
+            const userFind = await User.findOne({ _id: idUser })
             if (!userFind) {
                 return res.status(404).json({ message: 'No user founded.' })
             }

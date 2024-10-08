@@ -15,6 +15,7 @@ const User = new Schema(
         phone: { type: String, default: '' },
         urlImage: { type: String, default: '' },
         role: { type: String, default: 'user' },
+        id: { type: String, default: '' },
     },
     { timestamps: true }
 )
