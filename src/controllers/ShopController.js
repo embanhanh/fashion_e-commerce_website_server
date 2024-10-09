@@ -26,6 +26,16 @@ class ShopController {
             next(err)
         }
     }
+
+    //[POST] /shop/create
+    async createShop(req, res, next) {
+        try {
+            const shop = await Shop.create(req.body)
+            res.json(shop)
+        } catch (err) {
+            next(err)
+        }
+    }
 }
 
 module.exports = new ShopController()
