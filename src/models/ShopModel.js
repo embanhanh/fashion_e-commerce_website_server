@@ -8,16 +8,11 @@ const ShopSchema = new Schema(
         description: { type: String, default: '' },
         logo: { type: String, default: '' },
         address: {
-            street: String,
-            city: String,
-            state: String,
-            country: String,
-            postalCode: String,
+            type: String,
+            default: '',
         },
-        contactInfo: {
-            email: String,
-            phone: String,
-        },
+        email: { type: String, default: '' },
+        phone: { type: String, default: '' },
         socialMedia: {
             facebook: String,
             instagram: String,
@@ -27,6 +22,7 @@ const ShopSchema = new Schema(
         totalReviews: { type: Number, default: 0 },
         shippingPolicy: { type: String, default: '' },
         returnPolicy: { type: String, default: '' },
+        promotionPolicy: { type: String, default: '' },
         workingHours: {
             monday: { open: String, close: String },
             tuesday: { open: String, close: String },
