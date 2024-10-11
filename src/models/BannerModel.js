@@ -11,6 +11,20 @@ const Banner = new Schema(
         displayStartTime: { type: Date },
         displayEndTime: { type: Date },
         isActive: { type: Boolean, default: true },
+        elements: {
+            title: {
+                left: { type: Number },
+                top: { type: Number },
+            },
+            description: {
+                left: { type: Number },
+                top: { type: Number },
+            },
+            button: {
+                left: { type: Number },
+                top: { type: Number },
+            },
+        },
     },
     { timestamps: true }
 )

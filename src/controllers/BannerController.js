@@ -4,8 +4,23 @@ class BannerController {
     //[Get] /banner
     async getBanner(req, res, next) {
         try {
-            let banner = await Banner.find()
-            res.status(200).json(banner)
+            const { search, startDate, endDate } = req.query
+            console.log(req.query)
+            const query = {}
+
+            if (search) {
+                query.$or = [{ title: { $regex: search, $options: 'i' } }, { description: { $regex: search, $options: 'i' } }]
+            }
+            if (startDate || endDate) {
+                if (startDate) {
+                    query.displayStartTime = { $gte: new Date(startDate) }
+                }
+                if (endDate) {
+                    query.displayEndTime = { $lte: new Date(endDate) }
+                }
+            }
+            const banners = await Banner.find(query).sort({ createdAt: -1 })
+            res.status(200).json({ banners })
         } catch (err) {
             next(err)
         }
@@ -23,8 +38,8 @@ class BannerController {
     // [Post] /banner/create
     async createBanner(req, res, next) {
         try {
-            const { imageUrl, title, description, buttonText, linkUrl, displayStartTime, displayEndTime, isActive } = req.body
-            const banner = new Banner({ imageUrl, title, description, buttonText, linkUrl, displayStartTime, displayEndTime, isActive })
+            const { imageUrl, title, description, buttonText, linkUrl, displayStartTime, displayEndTime, isActive, elements } = req.body
+            const banner = new Banner({ imageUrl, title, description, buttonText, linkUrl, displayStartTime, displayEndTime, isActive, elements })
             await banner.save()
             res.status(200).json(banner)
         } catch (err) {
