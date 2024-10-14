@@ -5,7 +5,6 @@ class BannerController {
     async getBanner(req, res, next) {
         try {
             const { search, startDate, endDate } = req.query
-            console.log(req.query)
             const query = {}
 
             if (search) {
@@ -26,10 +25,34 @@ class BannerController {
         }
     }
 
+    //[Get] /banner/get/:bannerId
+    async getBannerById(req, res, next) {
+        try {
+            const { bannerId } = req.params
+            const banner = await Banner.findById(bannerId)
+            if (!banner) {
+                return res.status(404).json({ message: 'Banner not found' })
+            }
+            res.status(200).json(banner)
+        } catch (err) {
+            next(err)
+        }
+    }
+
     //[Put] /banner/edit/:bannerId
     async editBanner(req, res, next) {
         try {
             const { bannerId } = req.params
+            const { imageUrl, title, description, buttonText, linkUrl, displayStartTime, displayEndTime, isActive, elements } = req.body
+            const banner = await Banner.findByIdAndUpdate(
+                bannerId,
+                { imageUrl, title, description, buttonText, linkUrl, displayStartTime, displayEndTime, isActive, elements },
+                { new: true }
+            )
+            if (!banner) {
+                return res.status(404).json({ message: 'Banner not found' })
+            }
+            res.status(200).json(banner)
         } catch (err) {
             next(err)
         }
