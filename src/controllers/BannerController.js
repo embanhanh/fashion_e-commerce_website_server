@@ -1,5 +1,5 @@
 const Banner = require('../models/BannerModel')
-
+const { bucket } = require('../configs/FirebaseConfig')
 class BannerController {
     //[Get] /banner
     async getBanner(req, res, next) {
@@ -81,6 +81,48 @@ class BannerController {
             }
 
             res.status(200).json(banner)
+        } catch (err) {
+            next(err)
+        }
+    }
+
+    // [POST] /banner/remove-many
+    async removeManyBanners(req, res, next) {
+        try {
+            const { bannerIds } = req.body
+            const banners = await Banner.find({ _id: { $in: bannerIds } })
+
+            // Xóa ảnh từ Firebase Storage
+            for (const banner of banners) {
+                if (banner.imageUrl) {
+                    // Giải mã URL và lấy tên file
+                    const decodedUrl = decodeURIComponent(banner.imageUrl)
+                    const fileName = decodedUrl.split('/').pop().split('?')[0]
+
+                    try {
+                        const filePath = `banners/${fileName}`
+                        const [fileExists] = await bucket.file(filePath).exists()
+
+                        if (fileExists) {
+                            await bucket.file(filePath).delete()
+                            console.log(`File ${filePath} đã được xóa từ Storage`)
+                        } else {
+                            console.log(`File ${filePath} không tồn tại trong Storage`)
+                        }
+                    } catch (error) {
+                        console.error(`Lỗi khi xóa file ${fileName}:`, error)
+                    }
+                }
+            }
+
+            // Xóa banners từ database
+            const result = await Banner.deleteMany({ _id: { $in: bannerIds } })
+
+            if (result.deletedCount === 0) {
+                return res.status(404).json({ message: 'Không tìm thấy banner nào để xóa' })
+            }
+
+            res.status(200).json(bannerIds)
         } catch (err) {
             next(err)
         }

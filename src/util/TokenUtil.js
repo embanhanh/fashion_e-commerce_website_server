@@ -1,6 +1,6 @@
 const jwt = require('jsonwebtoken')
 require('dotenv').config()
-const admin = require('../configs/FirebaseConfig')
+const { admin } = require('../configs/FirebaseConfig')
 
 const gennerateAccessToken = async (payload) => {
     const token = jwt.sign(payload, 'access_token', { expiresIn: '1h' })
