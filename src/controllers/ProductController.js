@@ -54,19 +54,19 @@ class ProductController {
                 }
             }
 
-            // if (soldQuantity) {
-            //     try {
-            //         const { min, max } = soldQuantity
-            //         if (min || max) {
-            //             match.soldQuantity = {}
-            //             if (min) match.soldQuantity.$gte = Number(min)
+            if (soldQuantity) {
+                try {
+                    const { min, max } = soldQuantity
+                    if (min || max) {
+                        match.soldQuantity = {}
+                        if (min) match.soldQuantity.$gte = Number(min)
 
-            //             if (max) match.soldQuantity.$lte = Number(max)
-            //         }
-            //     } catch (error) {
-            //         console.error('Error parsing stockQuantity:', error)
-            //     }
-            // }
+                        if (max) match.soldQuantity.$lte = Number(max)
+                    }
+                } catch (error) {
+                    console.error('Error parsing stockQuantity:', error)
+                }
+            }
 
             if (Object.keys(match).length > 0) {
                 pipeline.push({ $match: match })
@@ -131,16 +131,20 @@ class ProductController {
             }
 
             // Stage 5: Pagination
-            pipeline.push({ $skip: (Number(page) - 1) * Number(limit) })
-            pipeline.push({ $limit: Number(limit) })
+            if (Number(limit) < 1000000) {
+                pipeline.push({ $skip: (Number(page) - 1) * Number(limit) })
+                pipeline.push({ $limit: Number(limit) })
+            }
 
             // Execute the aggregation
             const products = await Product.aggregate(pipeline)
 
             // Get total count for pagination
             const countPipeline = [...pipeline]
-            countPipeline.pop() // Remove $limit
-            countPipeline.pop() // Remove $skip
+            if (Number(limit) < 1000000) {
+                countPipeline.pop() // Remove $limit
+                countPipeline.pop() // Remove $skip
+            }
             countPipeline.push({ $count: 'total' })
             const totalResult = await Product.aggregate(countPipeline)
             const total = totalResult.length > 0 ? totalResult[0].total : 0
