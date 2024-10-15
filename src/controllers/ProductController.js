@@ -1,6 +1,7 @@
 const Product = require('../models/ProductModel')
 const ProductVariant = require('../models/ProductVariantModel')
 const mongoose = require('mongoose')
+const { bucket } = require('../configs/FirebaseConfig')
 
 class ProductController {
     // [GET] /product
@@ -343,6 +344,47 @@ class ProductController {
                 return res.status(404).json({ message: 'Product not found' })
             }
             return res.status(200).json({ message: 'Xóa sản phẩm thành công' })
+        } catch (err) {
+            next(err)
+        }
+    }
+    // [POST] /product/delete-many
+    async deleteManyProducts(req, res, next) {
+        const { productSlugs } = req.body
+        try {
+            // const products = await Product.find({ slug: { $in: productSlugs } })
+
+            // // Xóa ảnh từ Firebase Storage
+            // for (const product of products) {
+            //     if (product.urlImage) {
+            //         // Giải mã URL và lấy tên file
+            //         const decodedUrl = decodeURIComponent(product.urlImage)
+            //         const fileName = decodedUrl.split('/').pop().split('?')[0]
+
+            //         try {
+            //             const filePath = `products/${fileName}`
+            //             const [fileExists] = await bucket.file(filePath).exists()
+
+            //             if (fileExists) {
+            //                 await bucket.file(filePath).delete()
+            //                 console.log(`File ${filePath} đã được xóa từ Storage`)
+            //             } else {
+            //                 console.log(`File ${filePath} không tồn tại trong Storage`)
+            //             }
+            //         } catch (error) {
+            //             console.error(`Lỗi khi xóa file ${fileName}:`, error)
+            //         }
+            //     }
+            // }
+
+            // Xóa banners từ database
+            const result = await Product.delete({ slug: { $in: productSlugs } })
+
+            if (result.nModified === 0) {
+                return res.status(404).json({ message: 'Không tìm thấy sản phẩm nào để xóa' })
+            }
+
+            res.status(200).json(productSlugs)
         } catch (err) {
             next(err)
         }

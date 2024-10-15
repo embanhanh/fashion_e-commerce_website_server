@@ -16,12 +16,12 @@ const Product = new Schema(
         originalPrice: { type: Number, required: true, default: 0 },
         stockQuantity: { type: Number, required: true, default: 0 },
         rating: { type: Number, required: true, default: 0 },
-        isFeatured: { type: Boolean, default: false }, // Sản phẩm nổi bật
-        isActive: { type: Boolean, default: true }, // Trạng thái sản phẩm
-        discount: { type: Number, default: 0 }, // Phần trăm giảm giá
+        isFeatured: { type: Boolean, default: false },
+        isActive: { type: Boolean, default: true },
+        discount: { type: Number, default: 0 },
         categories: [{ type: Schema.Types.ObjectId, ref: 'category' }],
-        variants: [{ type: Schema.Types.ObjectId, ref: 'product_variant' }], // Liên kết tới bảng ProductVariant
-        minOrderQuantity: { type: Number, default: 1 }, // Thêm mới
+        variants: [{ type: Schema.Types.ObjectId, ref: 'product_variant' }],
+        minOrderQuantity: { type: Number, default: 1 },
         maxOrderQuantity: { type: Number, default: 100 },
         soldQuantity: { type: Number, default: 0 },
     },
