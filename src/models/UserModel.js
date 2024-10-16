@@ -16,6 +16,7 @@ const User = new Schema(
         urlImage: { type: String, default: '' },
         role: { type: String, default: 'user' },
         id: { type: String, default: '' },
+        vouchers: [{ type: Schema.Types.ObjectId, ref: 'vouchers' }],
     },
     { timestamps: true }
 )

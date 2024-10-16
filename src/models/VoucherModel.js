@@ -1,5 +1,5 @@
 const mongoose = require('mongoose')
-
+const mongooseDelete = require('mongoose-delete')
 const Schema = mongoose.Schema
 
 const VoucherSchema = new Schema(
@@ -36,5 +36,10 @@ const VoucherSchema = new Schema(
     },
     { timestamps: true }
 )
+
+VoucherSchema.plugin(mongooseDelete, {
+    overrideMethods: 'all',
+    deletedAt: true,
+})
 
 module.exports = mongoose.model('vouchers', VoucherSchema)

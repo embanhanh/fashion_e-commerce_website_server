@@ -4,7 +4,7 @@ const jwt = require('jsonwebtoken')
 const User = require('../models/UserModel')
 const Address = require('../models/AddressModel')
 const OerderProduct = require('../models/OrderProductModel')
-const OrderProductModel = require('../models/OrderProductModel')
+const Voucher = require('../models/VoucherModel')
 const { bucket } = require('../configs/FirebaseConfig')
 
 const { verifyFirebaseToken, gennerateAccessToken, gennerateRefreshToken } = require('../util/TokenUtil')
@@ -243,15 +243,19 @@ class UserController {
                 await Address.updateMany({ user: userId }, { $set: { default: false } })
             }
 
-            const address = await Address.findByIdAndUpdate(id, {
-                user: userId,
-                name,
-                phone,
-                location,
-                type,
-                default: isDefault,
-            })
-
+            const address = await Address.findOneAndUpdate(
+                { _id: id, user: userId },
+                {
+                    name,
+                    phone,
+                    location,
+                    type,
+                    default: isDefault,
+                }
+            )
+            if (!address) {
+                return res.status(404).json({ message: 'No address founded.' })
+            }
             return res.status(200).json(address)
         } catch (err) {
             next(err)
@@ -260,8 +264,12 @@ class UserController {
     // [DELETE] /user/account/address/delete/:id
     async deleteAddressUser(req, res, next) {
         try {
+            const { _id: userId } = req.user.data
             const id = req.params.id
-            await Address.findOneAndDelete({ _id: id })
+            const address = await Address.findOneAndDelete({ _id: id, user: userId })
+            if (!address) {
+                return res.status(404).json({ message: 'No address founded.' })
+            }
             return res.status(200).json({ message: 'Địa chỉ đã được xóa thành công' })
         } catch (err) {
             next(err)
@@ -270,8 +278,16 @@ class UserController {
     // [GET] /user/account/payment
     async getPaymentUser(req, res, next) {
         try {
-            const user = req.user
-            const idUser = user._id
+        } catch (err) {
+            next(err)
+        }
+    }
+    // [GET] /user/account/voucher
+    async getVoucherUser(req, res, next) {
+        try {
+            const { _id: userId } = req.user.data
+            const vouchers = await Voucher.find({ user: userId }).populate('applicableProducts')
+            return res.status(200).json(vouchers)
         } catch (err) {
             next(err)
         }
