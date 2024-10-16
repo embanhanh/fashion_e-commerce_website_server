@@ -3,7 +3,7 @@ const Schema = mongoose.Schema
 
 const Address = new Schema(
     {
-        name: { type: String, required: true, unique: true },
+        name: { type: String, required: true },
         phone: { type: String, required: true },
         location: { type: String, required: true },
         type: { type: String, required: true },

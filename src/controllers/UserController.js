@@ -5,6 +5,7 @@ const User = require('../models/UserModel')
 const Address = require('../models/AddressModel')
 const OerderProduct = require('../models/OrderProductModel')
 const OrderProductModel = require('../models/OrderProductModel')
+const { bucket } = require('../configs/FirebaseConfig')
 
 const { verifyFirebaseToken, gennerateAccessToken, gennerateRefreshToken } = require('../util/TokenUtil')
 
@@ -174,6 +175,17 @@ class UserController {
             if (!userFind) {
                 return res.status(404).json({ message: 'No user founded.' })
             }
+            if (userFind.urlImage && userFind.urlImage !== urlImage && userFind.urlImage.startsWith('https://firebasestorage.googleapis.com')) {
+                const fileName = decodeURIComponent(userFind.urlImage).split('/').pop().split('?')[0]
+                const filePath = `avatars/${fileName}`
+                const [fileExists] = await bucket.file(filePath).exists()
+                if (fileExists) {
+                    await bucket.file(filePath).delete()
+                    console.log(`File ${filePath} đã được xóa từ Storage`)
+                } else {
+                    console.log(`File ${filePath} không tồn tại trong Storage`)
+                }
+            }
             userFind.name = name
             userFind.gender = gender
             userFind.birthday = birthday
@@ -202,6 +214,10 @@ class UserController {
             const { _id: userId } = req.user.data
             const { name, phone, location, type, default: isDefault } = req.body
 
+            if (isDefault) {
+                await Address.updateMany({ user: userId }, { $set: { default: false } })
+            }
+
             const address = await Address.create({
                 user: userId,
                 name,
@@ -222,6 +238,11 @@ class UserController {
             const { _id: userId } = req.user.data
             const { name, phone, location, type, default: isDefault } = req.body
             const id = req.params.id
+
+            if (isDefault) {
+                await Address.updateMany({ user: userId }, { $set: { default: false } })
+            }
+
             const address = await Address.findByIdAndUpdate(id, {
                 user: userId,
                 name,

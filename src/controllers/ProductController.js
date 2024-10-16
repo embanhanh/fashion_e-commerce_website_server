@@ -381,7 +381,6 @@ class ProductController {
             //     }
             // }
 
-            // Xóa banners từ database
             const result = await Product.delete({ slug: { $in: productSlugs } })
 
             if (result.nModified === 0) {
