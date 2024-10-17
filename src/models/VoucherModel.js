@@ -25,7 +25,7 @@ const VoucherSchema = new Schema(
         },
         discountValue: { type: Number, required: true }, // Giá trị giảm (phần trăm hoặc số tiền)
         minOrderValue: { type: Number }, // Giá trị đơn hàng tối thiểu để áp dụng voucher
-        maxDiscountvalue: { type: Number, default: Infinity }, // Giảm giá tối đa (chỉ khi kiểu giảm giá là percentage)
+        maxDiscountValue: { type: Number, default: Infinity }, // Giảm giá tối đa (chỉ khi kiểu giảm giá là percentage)
         usageLimit: { type: Number, default: 1, required: true }, // Số lần voucher có thể sử dụng
         used: { type: Number, default: 0 }, // Số lần đã sử dụng
         quantityPerUser: { type: Number, default: 1, required: true }, // Số lượng voucher tối đa trên 1 khách hàng
