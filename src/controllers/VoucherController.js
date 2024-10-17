@@ -11,10 +11,10 @@ class VoucherController {
         }
     }
 
-    //[GET] /voucher/get/:id
+    //[GET] /voucher/get/:voucherId
     async getVoucherById(req, res, next) {
         try {
-            const voucher = await Voucher.findOne({ _id: req.params.id }).populate('applicableProducts')
+            const voucher = await Voucher.findOne({ _id: req.params.voucherId }).populate('applicableProducts')
             if (!voucher) {
                 return res.status(404).json({ message: 'Không tìm thấy voucher' })
             }
@@ -24,10 +24,10 @@ class VoucherController {
         }
     }
 
-    //[PUT] /voucher/edit/:id
+    //[PUT] /voucher/edit/:voucherId
     async updateVoucher(req, res, next) {
         try {
-            const updatedVoucher = await Voucher.findOneAndUpdate({ _id: req.params.id }, req.body, { new: true, runValidators: true })
+            const updatedVoucher = await Voucher.findOneAndUpdate({ _id: req.params.voucherId }, req.body, { new: true, runValidators: true })
             if (!updatedVoucher) {
                 return res.status(404).json({ message: 'Không tìm thấy thông tin voucher để cập nhật' })
             }
@@ -50,10 +50,10 @@ class VoucherController {
         }
     }
 
-    //[DELETE] /voucher/delete/:id
+    //[DELETE] /voucher/delete/:voucherId
     async deleteVoucher(req, res, next) {
         try {
-            const voucher = await Voucher.findOneAndDelete({ _id: req.params.id })
+            const voucher = await Voucher.findOneAndDelete({ _id: req.params.voucherId })
             if (!voucher) {
                 return res.status(404).json({ message: 'Không tìm thấy voucher để xóa' })
             }
@@ -66,12 +66,12 @@ class VoucherController {
     //[POST] /voucher/delete-many
     async deleteManyVoucher(req, res, next) {
         try {
-            const { ids } = req.body
-            const voucher = await Voucher.delete({ _id: { $in: ids } })
+            const { voucherIds } = req.body
+            const voucher = await Voucher.delete({ _id: { $in: voucherIds } })
             if (voucher.nModified === 0) {
                 return res.status(404).json({ message: 'Không tìm thấy voucher nào để xóa' })
             }
-            res.json(ids)
+            res.json(voucherIds)
         } catch (err) {
             next(err)
         }
