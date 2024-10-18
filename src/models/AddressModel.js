@@ -8,7 +8,7 @@ const Address = new Schema(
         location: { type: String, required: true },
         type: { type: String, required: true },
         user: { type: mongoose.Schema.Types.ObjectId, ref: 'users', required: true },
-        default: { type: Boolean, required: true },
+        default: { type: Boolean, default: false },
     },
     { timestamps: true }
 )

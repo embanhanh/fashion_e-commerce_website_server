@@ -2,6 +2,8 @@ const OrderProduct = require('../models/OrderProductModel')
 const ProductVariant = require('../models/ProductVariantModel')
 const Address = require('../models/AddressModel')
 const Voucher = require('../models/VoucherModel')
+const Cart = require('../models/CartModel')
+const mongoose = require('mongoose')
 
 class OrderProductController {
     // [GET] /order
@@ -25,6 +27,7 @@ class OrderProductController {
     async createOrder(req, res, next) {
         const session = await mongoose.startSession() // Bắt đầu phiên giao dịch
         session.startTransaction()
+        const userId = req.user.data._id
 
         try {
             const { products, paymentMethod, productsPrice, shippingPrice, totalPrice, shippingAddress, user, vouchers } = req.body
@@ -54,21 +57,24 @@ class OrderProductController {
                 shippingPrice,
                 totalPrice,
                 shippingAddress,
-                user,
+                user: userId,
                 vouchers,
             })
 
             // Lưu đơn hàng
             const savedOrder = await newOrder.save({ session })
 
+            const cart = await Cart.findOne({ user: userId })
+            if (cart) {
+                cart.items = cart.items.filter((item) => !products.some((product) => product.product.toString() === item.variant.toString()))
+                await cart.save({ session })
+            }
+
             // Cam kết giao dịch
             await session.commitTransaction()
             session.endSession()
 
-            res.status(201).json({
-                message: 'Order created successfully',
-                order: savedOrder,
-            })
+            res.status(201).json(savedOrder)
         } catch (err) {
             // Rollback lại trong trường hợp có lỗi
             await session.abortTransaction()

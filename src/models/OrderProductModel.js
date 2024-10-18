@@ -19,7 +19,7 @@ const OrderProducts = new Schema(
         user: { type: mongoose.Schema.Types.ObjectId, ref: 'users', required: true },
         paidAt: { type: Date, default: null },
         deliveredAt: { type: Date, default: null },
-        vouchers: [{ voucher: { type: mongoose.Schema.Types.ObjectId, ref: 'vouchers' } }],
+        vouchers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'vouchers' }],
     },
     { timestamps: true }
 )

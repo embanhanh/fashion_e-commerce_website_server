@@ -42,9 +42,12 @@ class CartController {
                 cart.items.push({ variant, quantity })
             }
 
-            await cart.save()
-
-            res.status(200).json(cart)
+            const updatedCart = await cart.save()
+            await updatedCart.populate({
+                path: 'items.variant',
+                populate: { path: 'product' },
+            })
+            res.status(200).json(updatedCart)
         } catch (err) {
             next(err)
         }
@@ -71,13 +74,13 @@ class CartController {
 
             cartItem.quantity = quantity
 
-            await cart.save()
-            await cart.populate({
+            const updatedCart = await cart.save()
+            await updatedCart.populate({
                 path: 'items.variant',
                 populate: { path: 'product' },
             })
 
-            res.status(200).json(cart)
+            res.status(200).json(updatedCart)
         } catch (err) {
             next(err)
         }
@@ -97,13 +100,13 @@ class CartController {
 
             cart.items = cart.items.filter((item) => item._id.toString() !== itemId)
 
-            await cart.save()
-            await cart.populate({
+            const updatedCart = await cart.save()
+            await updatedCart.populate({
                 path: 'items.variant',
                 populate: { path: 'product' },
             })
 
-            res.status(200).json(cart)
+            res.status(200).json(updatedCart)
         } catch (err) {
             next(err)
         }
