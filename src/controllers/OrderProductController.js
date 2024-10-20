@@ -8,8 +8,33 @@ const mongoose = require('mongoose')
 class OrderProductController {
     // [GET] /order
     async getAllOrder(req, res, next) {
+        const { productName, status, paymentMethod, shippingMethod, orderStartDate, orderEndDate } = req.query
         try {
-            const orderProducts = await OrderProduct.find()
+            const filterConditions = {}
+
+            if (status) {
+                filterConditions.status = status
+            }
+
+            if (paymentMethod) {
+                filterConditions.paymentMethod = paymentMethod
+            }
+
+            if (shippingMethod) {
+                filterConditions.shippingMethod = shippingMethod
+            }
+
+            if (orderStartDate || orderEndDate) {
+                filterConditions.createdAt = {}
+                if (orderStartDate) {
+                    filterConditions.createdAt.$gte = new Date(orderStartDate)
+                }
+                if (orderEndDate) {
+                    filterConditions.createdAt.$lte = new Date(orderEndDate)
+                }
+            }
+
+            let orderProducts = await OrderProduct.find(filterConditions)
                 .populate({
                     path: 'products.product',
                     populate: {
@@ -17,6 +42,15 @@ class OrderProductController {
                     },
                 })
                 .populate('vouchers.voucher')
+                .populate('shippingAddress')
+                .populate('user')
+
+            if (productName && productName.trim()) {
+                orderProducts = orderProducts.filter((order) =>
+                    order.products.some((product) => product.product.product.name.toLowerCase().includes(productName.toLowerCase().trim()))
+                )
+            }
+
             res.status(200).json(orderProducts)
         } catch (err) {
             next(err)
@@ -87,18 +121,54 @@ class OrderProductController {
     async updateOrderStatus(req, res, next) {
         try {
             const orderId = req.params.order_id
+            const userRole = req.user.data.role
             const { status } = req.body
 
-            const updatedOrder = await OrderProduct.findByIdAndUpdate(orderId, { status }, { new: true })
+            if (userRole !== 'admin' && status !== 'cancelled') {
+                return res.status(403).json({ message: 'You are not authorized to update this order' })
+            }
+
+            if (userRole !== 'admin' && status === 'cancelled') {
+                const findOrder = await OrderProduct.findById(orderId)
+                if (findOrder.status !== 'pending' && findOrder.status !== 'processing') {
+                    return res.status(400).json({ message: 'You can only cancel pending or processing orders' })
+                }
+            }
+
+            const updatedOrder = await OrderProduct.findById(orderId)
 
             if (!updatedOrder) {
                 return res.status(404).json({ message: 'Order not found' })
             }
 
-            res.status(200).json({
-                message: 'Order status updated successfully',
-                order: updatedOrder,
-            })
+            res.status(200).json(updatedOrder)
+        } catch (error) {
+            next(err)
+        }
+    }
+    // [PUT] /order/update-status-many
+    async updateOrderStatusMany(req, res, next) {
+        try {
+            const { orderIds, status } = req.body
+            console.log(status)
+            const userRole = req.user.data.role
+
+            for (const orderId of orderIds) {
+                if (userRole !== 'admin' && status !== 'cancelled') {
+                    return res.status(403).json({ message: 'You are not authorized to update this order' })
+                }
+
+                if (userRole !== 'admin' && status === 'cancelled') {
+                    const findOrder = await OrderProduct.findById(orderId)
+                    if (findOrder.status !== 'pending' && findOrder.status !== 'processing') {
+                        return res.status(400).json({ message: 'You can only cancel pending or processing orders' })
+                    }
+                }
+
+                await OrderProduct.findByIdAndUpdate(orderId, { status }, { new: true })
+            }
+
+            res.status(200).json({ orderIds, status })
         } catch (error) {
             next(err)
         }

@@ -10,7 +10,7 @@ const voucherRouter = require('./VoucherRoute')
 function route(app) {
     app.use('/user', userRouter)
     app.use('/product', productRouter)
-    app.use('/order', orderRouter)
+    app.use('/order', authenticateToken, orderRouter)
     app.use('/category', categoryRouter)
     app.use('/cart', cartRouter)
     app.use('/shop', shopRouter)
