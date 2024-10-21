@@ -56,6 +56,28 @@ class OrderProductController {
             next(err)
         }
     }
+    // [GET] /order/:order_id
+    async getOrderById(req, res, next) {
+        const orderId = req.params.order_id
+        try {
+            const order = await OrderProduct.findById(orderId)
+                .populate({
+                    path: 'products.product',
+                    populate: {
+                        path: 'product',
+                    },
+                })
+                .populate('shippingAddress')
+                .populate('user')
+                .populate('vouchers.voucher')
+            if (!order) {
+                return res.status(404).json({ message: 'Order not found' })
+            }
+            res.status(200).json(order)
+        } catch (err) {
+            next(err)
+        }
+    }
 
     // [POST] /order/create
     async createOrder(req, res, next) {
@@ -150,7 +172,6 @@ class OrderProductController {
     async updateOrderStatusMany(req, res, next) {
         try {
             const { orderIds, status } = req.body
-            console.log(status)
             const userRole = req.user.data.role
 
             for (const orderId of orderIds) {
@@ -164,8 +185,7 @@ class OrderProductController {
                         return res.status(400).json({ message: 'You can only cancel pending or processing orders' })
                     }
                 }
-
-                await OrderProduct.findByIdAndUpdate(orderId, { status }, { new: true })
+                await OrderProduct.findOneAndUpdate({ _id: orderId, status: { $ne: 'cancelled' } }, { status }, { new: true })
             }
 
             res.status(200).json({ orderIds, status })

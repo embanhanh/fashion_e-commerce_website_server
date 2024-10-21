@@ -6,7 +6,6 @@ const orderProductController = require('../controllers/OrderProductController')
 router.post('/create', orderProductController.createOrder)
 router.get('/', orderProductController.getAllOrder)
 router.put('/update-status-many', orderProductController.updateOrderStatusMany)
-// router.get('/:id', orderProductController.getOrderProductById)
-// router.put('/:id', orderProductController.updateOrderProduct)
+router.get('/:order_id', orderProductController.getOrderById)
 
 module.exports = router
