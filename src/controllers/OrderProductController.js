@@ -1,9 +1,11 @@
 const OrderProduct = require('../models/OrderProductModel')
 const ProductVariant = require('../models/ProductVariantModel')
+const Product = require('../models/ProductModel')
 const Address = require('../models/AddressModel')
 const Voucher = require('../models/VoucherModel')
 const Cart = require('../models/CartModel')
 const mongoose = require('mongoose')
+const { admin } = require('../configs/FirebaseConfig')
 
 class OrderProductController {
     // [GET] /order
@@ -103,6 +105,10 @@ class OrderProductController {
                 // Cập nhật số lượng tồn kho
                 productVariant.stockQuantity -= item.quantity
                 await productVariant.save({ session })
+                // Cập nhật số lượng tồn kho của product
+                const product = await Product.findById(productVariant.product)
+                product.stockQuantity -= item.quantity
+                await product.save({ session })
             }
 
             // Tạo đơn đặt hàng mới
@@ -119,6 +125,19 @@ class OrderProductController {
 
             // Lưu đơn hàng
             const savedOrder = await newOrder.save({ session })
+
+            const notif = {
+                userId: savedOrder.user.toString(),
+                orderId: savedOrder._id.toString(),
+                message: `Bạn có một đơn hàng mới từ khách hàng ${req.user.data.name || req.user.data.email}`,
+                createdAt: new Date(),
+                expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+                read: false,
+            }
+            const batch = admin.firestore().batch()
+            const notificationRef = admin.firestore().collection('notifications').doc('admin')
+            batch.set(notificationRef, { notifications: admin.firestore.FieldValue.arrayUnion(notif) }, { merge: true })
+            await batch.commit()
 
             const cart = await Cart.findOne({ user: userId })
             if (cart) {
@@ -173,24 +192,60 @@ class OrderProductController {
         try {
             const { orderIds, status } = req.body
             const userRole = req.user.data.role
+            const notifications = []
 
             for (const orderId of orderIds) {
                 if (userRole !== 'admin' && status !== 'cancelled') {
                     return res.status(403).json({ message: 'You are not authorized to update this order' })
                 }
+                const findOrder = await OrderProduct.findById(orderId)
+                if (!findOrder) {
+                    continue
+                }
 
                 if (userRole !== 'admin' && status === 'cancelled') {
-                    const findOrder = await OrderProduct.findById(orderId)
                     if (findOrder.status !== 'pending' && findOrder.status !== 'processing') {
-                        return res.status(400).json({ message: 'You can only cancel pending or processing orders' })
+                        continue
                     }
                 }
-                await OrderProduct.findOneAndUpdate({ _id: orderId, status: { $ne: 'cancelled' } }, { status }, { new: true })
+                if (findOrder.status !== status) {
+                    const updatedOrder = await OrderProduct.findOneAndUpdate(
+                        { _id: orderId, status: { $ne: 'cancelled' } },
+                        { status },
+                        { new: true }
+                    )
+
+                    if (updatedOrder) {
+                        notifications.push({
+                            userId: updatedOrder.user.toString(),
+                            orderId: updatedOrder._id.toString(),
+                            message: `Đơn hàng ${updatedOrder._id} của bạn đã được ${
+                                status === 'processing' ? 'xác nhận' : status === 'delivering' ? 'giao hàng' : 'giao hàng thành công'
+                            }`,
+                            createdAt: new Date(),
+                            expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+                            read: false,
+                        })
+                    }
+                }
             }
+
+            const batch = admin.firestore().batch()
+            for (const notification of notifications) {
+                const notificationRef = admin.firestore().collection('notifications').doc(notification.userId)
+                batch.set(
+                    notificationRef,
+                    {
+                        notifications: admin.firestore.FieldValue.arrayUnion(notification),
+                    },
+                    { merge: true }
+                )
+            }
+            await batch.commit()
 
             res.status(200).json({ orderIds, status })
         } catch (error) {
-            next(err)
+            next(error)
         }
     }
     // [PUT] /order/update/:order_id
