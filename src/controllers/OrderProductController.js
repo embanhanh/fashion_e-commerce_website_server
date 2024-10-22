@@ -198,7 +198,7 @@ class OrderProductController {
                 if (userRole !== 'admin' && status !== 'cancelled') {
                     return res.status(403).json({ message: 'You are not authorized to update this order' })
                 }
-                const findOrder = await OrderProduct.findById(orderId)
+                const findOrder = await OrderProduct.findById(orderId).populate('products.product')
                 if (!findOrder) {
                     continue
                 }
@@ -216,11 +216,27 @@ class OrderProductController {
                     )
 
                     if (updatedOrder) {
+                        if (status === 'cancelled') {
+                            for (const product of updatedOrder.products) {
+                                const productVariant = await ProductVariant.findById(product.product)
+                                productVariant.stockQuantity += product.quantity
+                                await productVariant.save()
+                                const productInStock = await Product.findById(productVariant.product)
+                                productInStock.stockQuantity += product.quantity
+                                await productInStock.save()
+                            }
+                        }
                         notifications.push({
                             userId: updatedOrder.user.toString(),
                             orderId: updatedOrder._id.toString(),
-                            message: `Đơn hàng ${updatedOrder._id} của bạn đã được ${
-                                status === 'processing' ? 'xác nhận' : status === 'delivering' ? 'giao hàng' : 'giao hàng thành công'
+                            message: `Đơn hàng ${updatedOrder._id} của bạn đã ${
+                                status === 'processing'
+                                    ? 'được xác nhận'
+                                    : status === 'delivering'
+                                    ? 'được giao'
+                                    : status === 'delivered'
+                                    ? 'được giao hàng thành công'
+                                    : 'bị hủy'
                             }`,
                             createdAt: new Date(),
                             expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
