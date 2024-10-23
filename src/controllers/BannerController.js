@@ -4,7 +4,7 @@ class BannerController {
     //[Get] /banner
     async getBanner(req, res, next) {
         try {
-            const { search, startDate, endDate } = req.query
+            const { search, startDate, endDate, isActive } = req.query
             const query = {}
 
             if (search) {
@@ -18,7 +18,12 @@ class BannerController {
                     query.displayEndTime = { $lte: new Date(endDate) }
                 }
             }
+            if (isActive) {
+                query.displayStartTime = { $lte: new Date() }
+                query.displayEndTime = { $gte: new Date() }
+            }
             const banners = await Banner.find(query).sort({ createdAt: -1 })
+
             res.status(200).json({ banners })
         } catch (err) {
             next(err)
