@@ -7,6 +7,7 @@ const cartRouter = require('./CartRoute')
 const shopRouter = require('./ShopRoute')
 const bannerRouter = require('./BannerRoute')
 const voucherRouter = require('./VoucherRoute')
+const promotionalComboRouter = require('./PromotionalComboRoute')
 function route(app) {
     app.use('/user', userRouter)
     app.use('/product', productRouter)
@@ -16,6 +17,7 @@ function route(app) {
     app.use('/shop', shopRouter)
     app.use('/banner', bannerRouter)
     app.use('/voucher', voucherRouter)
+    app.use('/promotional-combo', promotionalComboRouter)
 }
 
 module.exports = route
