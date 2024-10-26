@@ -197,6 +197,7 @@ class ProductController {
                 variants,
                 minOrderQuantity,
                 maxOrderQuantity,
+                shippingInfo,
             } = req.body
 
             const newProduct = new Product({
@@ -214,6 +215,7 @@ class ProductController {
                 categories,
                 minOrderQuantity,
                 maxOrderQuantity,
+                shippingInfo,
             })
 
             const savedProduct = await newProduct.save()
@@ -265,6 +267,7 @@ class ProductController {
                 variants,
                 minOrderQuantity,
                 maxOrderQuantity,
+                shippingInfo,
             } = req.body
 
             const updatedProduct = await Product.findOneAndUpdate(
@@ -284,6 +287,7 @@ class ProductController {
                     categories,
                     minOrderQuantity,
                     maxOrderQuantity,
+                    shippingInfo,
                 },
                 { new: true }
             )
