@@ -88,7 +88,18 @@ class OrderProductController {
         const userId = req.user.data._id
 
         try {
-            const { products, paymentMethod, productsPrice, shippingPrice, totalPrice, shippingAddress, user, vouchers } = req.body
+            const {
+                products,
+                paymentMethod,
+                productsPrice,
+                shippingPrice,
+                totalPrice,
+                shippingAddress,
+                user,
+                vouchers,
+                expectedDeliveryDate,
+                shippingMethod,
+            } = req.body
 
             // Kiểm tra và cập nhật số lượng tồn kho
             for (const item of products) {
@@ -121,6 +132,8 @@ class OrderProductController {
                 shippingAddress,
                 user: userId,
                 vouchers,
+                expectedDeliveryDate,
+                shippingMethod,
             })
 
             // Lưu đơn hàng
@@ -159,34 +172,34 @@ class OrderProductController {
     }
 
     // [PUT] /order/update_status/:order_id
-    async updateOrderStatus(req, res, next) {
-        try {
-            const orderId = req.params.order_id
-            const userRole = req.user.data.role
-            const { status } = req.body
+    // async updateOrderStatus(req, res, next) {
+    //     try {
+    //         const orderId = req.params.order_id
+    //         const userRole = req.user.data.role
+    //         const { status } = req.body
 
-            if (userRole !== 'admin' && status !== 'cancelled') {
-                return res.status(403).json({ message: 'You are not authorized to update this order' })
-            }
+    //         if (userRole !== 'admin' && status !== 'cancelled') {
+    //             return res.status(403).json({ message: 'You are not authorized to update this order' })
+    //         }
 
-            if (userRole !== 'admin' && status === 'cancelled') {
-                const findOrder = await OrderProduct.findById(orderId)
-                if (findOrder.status !== 'pending' && findOrder.status !== 'processing') {
-                    return res.status(400).json({ message: 'You can only cancel pending or processing orders' })
-                }
-            }
+    //         if (userRole !== 'admin' && status === 'cancelled') {
+    //             const findOrder = await OrderProduct.findById(orderId)
+    //             if (findOrder.status !== 'pending' && findOrder.status !== 'processing') {
+    //                 return res.status(400).json({ message: 'You can only cancel pending or processing orders' })
+    //             }
+    //         }
 
-            const updatedOrder = await OrderProduct.findById(orderId)
+    //         const updatedOrder = await OrderProduct.findById(orderId)
 
-            if (!updatedOrder) {
-                return res.status(404).json({ message: 'Order not found' })
-            }
+    //         if (!updatedOrder) {
+    //             return res.status(404).json({ message: 'Order not found' })
+    //         }
 
-            res.status(200).json(updatedOrder)
-        } catch (error) {
-            next(err)
-        }
-    }
+    //         res.status(200).json(updatedOrder)
+    //     } catch (error) {
+    //         next(err)
+    //     }
+    // }
     // [PUT] /order/update-status-many
     async updateOrderStatusMany(req, res, next) {
         try {
@@ -264,7 +277,7 @@ class OrderProductController {
             next(error)
         }
     }
-    // [PUT] /order/update/:order_id
+    // [PUT] /order/update/:order_id Chưa hoàn thành
     async updateOrder(req, res, next) {
         try {
             const orderId = req.params.order_id

@@ -212,22 +212,23 @@ class UserController {
     async createAddressUser(req, res, next) {
         try {
             const { _id: userId } = req.user.data
-            const { name, phone, location, type, default: isDefault } = req.body
+            const { name, phone, location, type, default: isDefault, address } = req.body
 
-            if (isDefault) {
+            if (isDefault === true) {
                 await Address.updateMany({ user: userId }, { $set: { default: false } })
             }
 
-            const address = await Address.create({
+            const newAddress = await Address.create({
                 user: userId,
                 name,
                 phone,
                 location,
                 type,
                 default: isDefault,
+                address,
             })
 
-            return res.status(201).json(address)
+            return res.status(201).json(newAddress)
         } catch (err) {
             next(err)
         }
@@ -236,14 +237,14 @@ class UserController {
     async updateAddressUser(req, res, next) {
         try {
             const { _id: userId } = req.user.data
-            const { name, phone, location, type, default: isDefault } = req.body
+            const { name, phone, location, type, default: isDefault, address } = req.body
             const id = req.params.id
 
-            if (isDefault) {
+            if (isDefault === true) {
                 await Address.updateMany({ user: userId }, { $set: { default: false } })
             }
 
-            const address = await Address.findOneAndUpdate(
+            const updatedAddress = await Address.findOneAndUpdate(
                 { _id: id, user: userId },
                 {
                     name,
@@ -251,12 +252,13 @@ class UserController {
                     location,
                     type,
                     default: isDefault,
+                    address,
                 }
             )
-            if (!address) {
+            if (!updatedAddress) {
                 return res.status(404).json({ message: 'No address founded.' })
             }
-            return res.status(200).json(address)
+            return res.status(200).json(updatedAddress)
         } catch (err) {
             next(err)
         }
