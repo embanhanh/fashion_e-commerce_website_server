@@ -16,6 +16,7 @@ router.put('/account/address/update/:id', authenticateToken, userController.upda
 router.delete('/account/address/delete/:id', authenticateToken, userController.deleteAddressUser)
 router.get('/account/address', authenticateToken, userController.getAddressUser)
 router.get('/account/payment', authenticateToken, userController.getPaymentUser)
+router.get('/account/voucher', authenticateToken, userController.getVoucherUser)
 router.get('/purchase/order/:id', authenticateToken, userController.getOrderDetail)
 router.get('/purchase', authenticateToken, userController.getPurchase)
 

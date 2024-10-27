@@ -8,7 +8,7 @@ const VoucherSchema = new Schema(
         voucherType: {
             type: String,
             required: true,
-            enum: ['all', 'product'],
+            enum: ['all', 'product', 'shipping'],
             default: 'all',
         },
         display: {

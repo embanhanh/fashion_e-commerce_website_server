@@ -288,8 +288,8 @@ class UserController {
     async getVoucherUser(req, res, next) {
         try {
             const { _id: userId } = req.user.data
-            const vouchers = await Voucher.find({ user: userId }).populate('applicableProducts')
-            return res.status(200).json(vouchers)
+            const user = await User.findOne({ _id: userId }).populate('vouchers')
+            return res.status(200).json(user.vouchers)
         } catch (err) {
             next(err)
         }
