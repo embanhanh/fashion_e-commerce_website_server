@@ -1,4 +1,5 @@
 const Voucher = require('../models/VoucherModel')
+const User = require('../models/UserModel')
 
 class VoucherController {
     //[GET] /voucher
@@ -72,6 +73,23 @@ class VoucherController {
                 return res.status(404).json({ message: 'Không tìm thấy voucher nào để xóa' })
             }
             res.json(voucherIds)
+        } catch (err) {
+            next(err)
+        }
+    }
+    //[POST] /voucher/give/:userId
+    async giveVoucher(req, res, next) {
+        try {
+            const { userId } = req.params
+            const user = await User.findById(userId)
+            if (!user) {
+                return res.status(404).json({ message: 'Không tìm thấy người dùng' })
+            }
+            const { voucherIds, message } = req.body
+            user.vouchers.push(...voucherIds)
+            await user.save()
+            //send message to notification
+            res.json(user)
         } catch (err) {
             next(err)
         }

@@ -16,6 +16,8 @@ const User = new Schema(
         urlImage: { type: String, default: '' },
         role: { type: String, default: 'user' },
         id: { type: String, default: '' },
+        isBlocked: { type: Boolean, default: false },
+        clientType: { type: String, default: 'new', enum: ['new', 'potential', 'loyal'] },
         vouchers: [{ type: Schema.Types.ObjectId, ref: 'vouchers' }],
     },
     { timestamps: true }

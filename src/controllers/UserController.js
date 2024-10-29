@@ -294,6 +294,62 @@ class UserController {
             next(err)
         }
     }
+    // [GET] /user/clients
+    async getClients(req, res, next) {
+        try {
+            const { name, phone, totalSpent, orderCount, clientType } = req.query
+            let query = { role: 'user' }
+
+            // Thêm các điều kiện lọc
+            if (name) {
+                query.name = { $regex: name, $options: 'i' }
+            }
+            if (phone) {
+                query.phone = { $regex: phone, $options: 'i' }
+            }
+            if (clientType) {
+                query.clientType = clientType
+            }
+
+            const clients = await User.find(query)
+            const orders = await OerderProduct.find({ user: { $in: clients.map((client) => client._id) } })
+            const userStats = {}
+
+            // Tính toán số đơn hàng và tổng tiền cho mỗi user
+            orders.forEach((order) => {
+                if (!userStats[order.user.toString()]) {
+                    userStats[order.user.toString()] = {
+                        orderCount: 0,
+                        totalSpent: 0,
+                    }
+                }
+                userStats[order.user.toString()].orderCount++
+                userStats[order.user.toString()].totalSpent += order.totalPrice
+            })
+
+            // Lọc và thêm thông tin vào kết quả
+            let clientsWithStats = clients.map((client) => {
+                const stats = userStats[client._id.toString()] || { orderCount: 0, totalSpent: 0 }
+                return {
+                    ...client.toObject(),
+                    orderCount: stats.orderCount,
+                    totalSpent: stats.totalSpent,
+                }
+            })
+
+            // Lọc theo totalSpent và orderCount
+            if (totalSpent) {
+                clientsWithStats = clientsWithStats.filter((client) => client.totalSpent >= parseInt(totalSpent))
+            }
+            if (orderCount) {
+                clientsWithStats = clientsWithStats.filter((client) => client.orderCount >= parseInt(orderCount))
+            }
+
+            return res.status(200).json(clientsWithStats)
+        } catch (err) {
+            next(err)
+        }
+    }
 }
 
 module.exports = new UserController()
