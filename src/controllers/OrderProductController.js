@@ -4,6 +4,7 @@ const Product = require('../models/ProductModel')
 const Address = require('../models/AddressModel')
 const Voucher = require('../models/VoucherModel')
 const Cart = require('../models/CartModel')
+const User = require('../models/UserModel')
 const mongoose = require('mongoose')
 const { admin } = require('../configs/FirebaseConfig')
 
@@ -209,7 +210,7 @@ class OrderProductController {
 
             for (const orderId of orderIds) {
                 if (userRole !== 'admin' && status !== 'cancelled') {
-                    return res.status(403).json({ message: 'You are not authorized to update this order' })
+                    return res.status(403).json({ message: 'Bạn không có đủ quyền cập nhật trạng thái đơn hàng' })
                 }
                 const findOrder = await OrderProduct.findById(orderId).populate('products.product')
                 if (!findOrder) {
@@ -237,6 +238,23 @@ class OrderProductController {
                                 const productInStock = await Product.findById(productVariant.product)
                                 productInStock.stockQuantity += product.quantity
                                 await productInStock.save()
+                            }
+                        }
+                        if (status === 'delivering') {
+                            updatedOrder.deliveredAt = new Date()
+                            await updatedOrder.save()
+                        }
+                        if (status === 'delivered') {
+                            const order = await OrderProduct.find({ user: updatedOrder.user })
+                            if (order.length >= 10 && order.length <= 50) {
+                                const user = await User.findById(updatedOrder.user)
+                                user.clientType = 'potential'
+                                await user.save()
+                            }
+                            if (order.length > 50) {
+                                const user = await User.findById(updatedOrder.user)
+                                user.clientType = 'loyal'
+                                await user.save()
                             }
                         }
                         notifications.push({

@@ -30,6 +30,12 @@ class UserController {
                 return res.status(400).json({ message: 'Tài khoản hoặc mật khẩu không chính xác, vui lòng thử lại' })
             }
 
+            if (user.isBlocked) {
+                return res.status(400).json({
+                    message: 'Tài khoản của bạn đã bị khóa. Vui lòng liên hệ chủ shop để biết thêm chi tiết',
+                })
+            }
+
             // Tạo token JWT
             const accessToken = await gennerateAccessToken({ data: user })
             const refreshToken = await gennerateRefreshToken({ data: user })
@@ -48,6 +54,14 @@ class UserController {
             const result = await verifyFirebaseToken(token)
             if (result.success) {
                 let user = await User.findOne({ id: result.user.uid })
+                if (user && user.isBlocked) {
+                    return res.status(400).json({
+                        message:
+                            'Tài khoản của bạn đã bị khóa vì các lý do sau: ' +
+                            user.blockReasons.join(', ') +
+                            '; Vui lòng liên hệ chủ shop để biết thêm chi tiết',
+                    })
+                }
                 if (!user) {
                     user = await User.create({
                         id: result.user.uid,
@@ -363,6 +377,104 @@ class UserController {
             user.isBlocked = true
             await user.save()
             return res.status(200).json(user)
+        } catch (err) {
+            next(err)
+        }
+    }
+    // [PATH] /user/clients/block-many
+    async blockManyClient(req, res, next) {
+        try {
+            const { userIds, reasons } = req.body
+            const users = await User.find({ _id: { $in: userIds } })
+            const updateOperations = users
+                .filter((user) => !user.isBlocked)
+                .map((user) => ({
+                    updateOne: {
+                        filter: { _id: user._id },
+                        update: {
+                            blockReasons: reasons,
+                            isBlocked: true,
+                        },
+                    },
+                }))
+
+            if (updateOperations.length > 0) {
+                await User.bulkWrite(updateOperations)
+            }
+            const updatedUsers = await User.find({ _id: { $in: userIds } })
+            return res.status(200).json(updatedUsers)
+        } catch (err) {
+            next(err)
+        }
+    }
+    // [PUT] /user/clients/unblock/:userId
+    async unblockClient(req, res, next) {
+        try {
+            const { userId } = req.params
+            const user = await User.findOne({ _id: userId })
+            if (!user) {
+                return res.status(404).json({ message: 'Không tìm thấy người dùng' })
+            }
+            user.isBlocked = false
+            user.blockReasons = []
+            await user.save()
+            return res.status(200).json(user)
+        } catch (err) {
+            next(err)
+        }
+    }
+    // [PATH] /user/clients/unblock-many
+    async unblockManyClient(req, res, next) {
+        try {
+            const { userIds } = req.body
+            const users = await User.find({ _id: { $in: userIds } })
+            const updateOperations = users
+                .filter((user) => user.isBlocked)
+                .map((user) => ({
+                    updateOne: { filter: { _id: user._id }, update: { isBlocked: false, blockReasons: [] } },
+                }))
+            if (updateOperations.length > 0) {
+                await User.bulkWrite(updateOperations)
+            }
+            const updatedUsers = await User.find({ _id: { $in: userIds } })
+            return res.status(200).json(updatedUsers)
+        } catch (err) {
+            next(err)
+        }
+    }
+    // [PUT] /user/clients/update-client-type/:userId
+    async updateClientType(req, res, next) {
+        try {
+            const { userId } = req.params
+            const { clientType } = req.body
+            const user = await User.findOne({ _id: userId })
+            if (!user) {
+                return res.status(404).json({ message: 'Không tìm thấy người dùng' })
+            }
+            if (clientType && user.clientType !== clientType) {
+                user.clientType = clientType
+                await user.save()
+            }
+            return res.status(200).json(user)
+        } catch (err) {
+            next(err)
+        }
+    }
+    // [PATH] /user/clients/update-client-type-many
+    async updateManyClientType(req, res, next) {
+        try {
+            const { userIds, clientType } = req.body
+            const users = await User.find({ _id: { $in: userIds } })
+            const updateOperations = users
+                .filter((user) => user.clientType !== clientType)
+                .map((user) => ({
+                    updateOne: { filter: { _id: user._id }, update: { clientType: clientType } },
+                }))
+            if (updateOperations.length > 0) {
+                await User.bulkWrite(updateOperations)
+            }
+            const updatedUsers = await User.find({ _id: { $in: userIds } })
+            return res.status(200).json(updatedUsers)
         } catch (err) {
             next(err)
         }

@@ -117,6 +117,60 @@ class VoucherController {
             next(err)
         }
     }
+    //[PUT] /voucher/give-many
+    async giveManyVoucher(req, res, next) {
+        try {
+            const { userIds, voucherIds, message } = req.body
+
+            // Tìm tất cả user có trong danh sách userIds
+            const users = await User.find({ _id: { $in: userIds } })
+
+            // Khởi tạo batch Firestore
+            const batch = admin.firestore().batch()
+
+            // Tạo thời gian hết hạn cho thông báo
+            const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+
+            // Thêm voucher và tạo thông báo cho mỗi user
+            users.forEach((user) => {
+                user.vouchers.push(...voucherIds)
+            })
+
+            // Lưu tất cả users đã cập nhật vào MongoDB cùng lúc
+            await User.bulkWrite(
+                users.map((user) => ({
+                    updateOne: {
+                        filter: { _id: user._id },
+                        update: { vouchers: user.vouchers },
+                    },
+                }))
+            )
+
+            // Duyệt qua từng user để thêm thông báo vào Firestore batch
+            users.forEach((user) => {
+                const notification = {
+                    userId: user._id.toString(),
+                    orderId: '',
+                    message: `Bạn đã nhận được các mã voucher ${voucherIds.join(', ')} từ shop với lời nhắn: '${message}'`,
+                    createdAt: new Date(),
+                    expiresAt,
+                    read: false,
+                }
+
+                // Tạo document reference và thêm vào batch
+                const notificationRef = admin.firestore().collection('notifications').doc(user._id.toString())
+                batch.set(notificationRef, { notifications: admin.firestore.FieldValue.arrayUnion(notification) }, { merge: true })
+            })
+
+            // Commit batch thông báo Firestore
+            await batch.commit()
+
+            // Gửi phản hồi thành công
+            res.json(userIds)
+        } catch (err) {
+            next(err)
+        }
+    }
 }
 
 module.exports = new VoucherController()
