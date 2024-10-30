@@ -350,6 +350,23 @@ class UserController {
             next(err)
         }
     }
+    // [PUT] /user/clients/block/:userId
+    async blockClient(req, res, next) {
+        try {
+            const { userId } = req.params
+            const { reasons } = req.body
+            const user = await User.findOne({ _id: userId })
+            if (!user) {
+                return res.status(404).json({ message: 'Không tìm thấy người dùng' })
+            }
+            user.blockReasons = reasons
+            user.isBlocked = true
+            await user.save()
+            return res.status(200).json(user)
+        } catch (err) {
+            next(err)
+        }
+    }
 }
 
 module.exports = new UserController()

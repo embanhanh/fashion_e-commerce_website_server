@@ -1,5 +1,7 @@
 const Voucher = require('../models/VoucherModel')
 const User = require('../models/UserModel')
+const mongoose = require('mongoose')
+const { admin } = require('../configs/FirebaseConfig')
 
 class VoucherController {
     //[GET] /voucher
@@ -77,7 +79,7 @@ class VoucherController {
             next(err)
         }
     }
-    //[POST] /voucher/give/:userId
+    //[PUT] /voucher/give/:userId
     async giveVoucher(req, res, next) {
         try {
             const { userId } = req.params
@@ -85,10 +87,31 @@ class VoucherController {
             if (!user) {
                 return res.status(404).json({ message: 'Không tìm thấy người dùng' })
             }
+            const notifications = []
             const { voucherIds, message } = req.body
             user.vouchers.push(...voucherIds)
             await user.save()
             //send message to notification
+            notifications.push({
+                userId: userId.toString(),
+                orderId: '',
+                message: `Bạn đã nhận được các mã voucher ${voucherIds.join(', ')} từ shop với lời nhắn: '${message}'`,
+                createdAt: new Date(),
+                expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+                read: false,
+            })
+            const batch = admin.firestore().batch()
+            for (const notification of notifications) {
+                const notificationRef = admin.firestore().collection('notifications').doc(notification.userId)
+                batch.set(
+                    notificationRef,
+                    {
+                        notifications: admin.firestore.FieldValue.arrayUnion(notification),
+                    },
+                    { merge: true }
+                )
+            }
+            await batch.commit()
             res.json(user)
         } catch (err) {
             next(err)

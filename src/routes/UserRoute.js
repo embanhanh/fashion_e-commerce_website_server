@@ -19,6 +19,6 @@ router.get('/account/payment', authenticateToken, userController.getPaymentUser)
 router.get('/account/voucher', authenticateToken, userController.getVoucherUser)
 router.get('/purchase/order/:id', authenticateToken, userController.getOrderDetail)
 router.get('/purchase', authenticateToken, userController.getPurchase)
+router.put('/clients/block/:userId', authenticateToken, userController.blockClient)
 router.get('/clients', authenticateToken, userController.getClients)
-
 module.exports = router

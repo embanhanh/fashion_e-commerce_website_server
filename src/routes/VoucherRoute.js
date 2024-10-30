@@ -8,5 +8,6 @@ router.post('/create', authenticateToken, voucherController.createVoucher)
 router.put('/edit/:voucherId', authenticateToken, voucherController.updateVoucher)
 router.delete('/remove/:voucherId', authenticateToken, voucherController.deleteVoucher)
 router.post('/delete-many', authenticateToken, voucherController.deleteManyVoucher)
+router.put('/give/:userId', authenticateToken, voucherController.giveVoucher)
 router.get('/', voucherController.getVoucher)
 module.exports = router
