@@ -18,7 +18,12 @@ const User = new Schema(
         id: { type: String, default: '' },
         isBlocked: { type: Boolean, default: false },
         clientType: { type: String, default: 'new', enum: ['new', 'potential', 'loyal'] },
-        vouchers: [{ type: Schema.Types.ObjectId, ref: 'vouchers' }],
+        vouchers: [
+            {
+                voucher: { type: Schema.Types.ObjectId, ref: 'vouchers' },
+                quantity: { type: Number, default: 1 },
+            },
+        ],
         blockReasons: [{ type: String }],
     },
     { timestamps: true }

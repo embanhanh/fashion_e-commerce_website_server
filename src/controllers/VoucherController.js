@@ -89,7 +89,13 @@ class VoucherController {
             }
             const notifications = []
             const { voucherIds, message } = req.body
-            user.vouchers.push(...voucherIds)
+            voucherIds.forEach((voucherId) => {
+                if (user.vouchers.find((voucher) => voucher.voucher.toString() === voucherId)) {
+                    user.vouchers.find((voucher) => voucher.voucher.toString() === voucherId).quantity += 1
+                } else {
+                    user.vouchers.push({ voucher: voucherId, quantity: 1 })
+                }
+            })
             await user.save()
             //send message to notification
             notifications.push({
@@ -133,7 +139,13 @@ class VoucherController {
 
             // Thêm voucher và tạo thông báo cho mỗi user
             users.forEach((user) => {
-                user.vouchers.push(...voucherIds)
+                voucherIds.forEach((voucherId) => {
+                    if (user.vouchers.find((voucher) => voucher.voucher.toString() === voucherId)) {
+                        user.vouchers.find((voucher) => voucher.voucher.toString() === voucherId).quantity += 1
+                    } else {
+                        user.vouchers.push({ voucher: voucherId, quantity: 1 })
+                    }
+                })
             })
 
             // Lưu tất cả users đã cập nhật vào MongoDB cùng lúc

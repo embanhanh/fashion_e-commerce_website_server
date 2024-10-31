@@ -96,7 +96,6 @@ class OrderProductController {
                 shippingPrice,
                 totalPrice,
                 shippingAddress,
-                user,
                 vouchers,
                 expectedDeliveryDate,
                 shippingMethod,
@@ -158,6 +157,18 @@ class OrderProductController {
                 cart.items = cart.items.filter((item) => !products.some((product) => product.product.toString() === item.variant.toString()))
                 await cart.save({ session })
             }
+
+            const user = await User.findById(userId)
+            user.vouchers.forEach((voucher) => {
+                if (vouchers.find((v) => v.toString() === voucher.voucher.toString())) {
+                    if (voucher.quantity > 1) {
+                        voucher.quantity -= 1
+                    } else {
+                        user.vouchers = user.vouchers.filter((v) => v.voucher.toString() !== voucher.voucher.toString())
+                    }
+                }
+            })
+            await user.save({ session })
 
             // Cam kết giao dịch
             await session.commitTransaction()

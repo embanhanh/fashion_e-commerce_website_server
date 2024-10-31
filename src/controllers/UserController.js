@@ -302,7 +302,7 @@ class UserController {
     async getVoucherUser(req, res, next) {
         try {
             const { _id: userId } = req.user.data
-            const user = await User.findOne({ _id: userId }).populate('vouchers')
+            const user = await User.findOne({ _id: userId }).populate('vouchers.voucher')
             return res.status(200).json(user.vouchers)
         } catch (err) {
             next(err)
