@@ -1,7 +1,9 @@
 const Product = require('../models/ProductModel')
 const ProductVariant = require('../models/ProductVariantModel')
+const OrderProduct = require('../models/OrderProductModel')
 const mongoose = require('mongoose')
-const { bucket } = require('../configs/FirebaseConfig')
+const { bucket, admin } = require('../configs/FirebaseConfig')
+const { validateFile, uploadFilesToFirebase } = require('../util/FirebaseUtil')
 
 class ProductController {
     // [GET] /product
@@ -392,6 +394,92 @@ class ProductController {
             }
 
             res.status(200).json(productSlugs)
+        } catch (err) {
+            next(err)
+        }
+    }
+    //[POST] /product/rating/:product_id
+    async ratingProduct(req, res, next) {
+        const { product_id } = req.params
+        const { _id: userId } = req.user.data
+        const { rating, comment } = req.body
+        const files = req.files
+        try {
+            const product = await Product.findById(product_id)
+            if (!product) {
+                return res.status(404).json({ message: 'Không tìm thấy sản phẩm' })
+            }
+            //Tìm kiếm đơn hàng có sản phẩm và gần nhất
+            // const order = await OrderProduct.findOne({
+            //     'products.product': product_id,
+            //     user: userId,
+            //     status: 'delivered',
+            // }).sort({ deliveredAt: -1 })
+
+            // if (!order) {
+            //     return res.status(404).json({
+            //         message: 'Không tìm thấy đơn hàng đã giao thành công cho sản phẩm này',
+            //     })
+            // }
+
+            // // Kiểm tra thời gian đánh giá (trong vòng 7 ngày sau khi giao hàng)
+            // const SEVEN_DAYS_IN_MS = 7 * 24 * 60 * 60 * 1000 // 7 ngày tính bằng milliseconds
+            // const deliveredDate = new Date(order.deliveredAt).getTime()
+            // const currentDate = new Date().getTime()
+
+            // if (currentDate - deliveredDate > SEVEN_DAYS_IN_MS) {
+            //     return res.status(403).json({
+            //         message: 'Bạn đã quá thời hạn đánh giá sản phẩm (7 ngày sau khi nhận hàng)',
+            //     })
+            // }
+
+            const ratingRef = admin.firestore().collection('product_ratings').doc(product_id)
+
+            const ratingDoc = await ratingRef.get()
+
+            if (ratingDoc.exists) {
+                const ratings = ratingDoc.data().ratings || []
+                const existingRating = ratings.find((r) => r.user?._id === userId.toString())
+                if (existingRating) {
+                    return res.status(403).json({
+                        message: 'Bạn đã đánh giá sản phẩm này rồi',
+                    })
+                }
+            }
+            //upload file lên firebase storage
+            const uploadedUrls = []
+            if (files && files.length > 0) {
+                for (const file of files) {
+                    const validationResult = validateFile(file, {
+                        maxSize: 10 * 1024 * 1024, // 10MB
+                        allowedTypes: ['image/jpeg', 'image/png', 'image/gif', 'video/mp4'],
+                    })
+                    if (validationResult !== true) {
+                        return res.status(400).json({ message: `Lỗi file ${file.originalname}: ${validationResult}` })
+                    }
+                }
+            }
+            const uploadedFiles = await uploadFilesToFirebase(files, 'products/ratings', `${product_id}_${userId}_`)
+
+            const newRating = {
+                user: {
+                    _id: req.user.data._id,
+                    name: req.user.data.name,
+                    email: req.user.data.email,
+                    avatar: req.user.data.urlImage,
+                },
+                rating: parseInt(rating),
+                comment: comment,
+                files: uploadedFiles,
+                createdAt: new Date().toISOString(),
+            }
+
+            if (!ratingDoc.exists) {
+                await ratingRef.set({ ratings: [newRating] })
+            } else {
+                await ratingRef.update({ ratings: admin.firestore.FieldValue.arrayUnion(newRating) })
+            }
+            res.status(200).json({ message: 'Đánh giá sản phẩm thành công' })
         } catch (err) {
             next(err)
         }

@@ -44,7 +44,7 @@ class BannerController {
         }
     }
 
-    //[Put] /banner/edit/:bannerId
+    //[PUT] /banner/edit/:bannerId
     async editBanner(req, res, next) {
         try {
             const { bannerId } = req.params
@@ -63,7 +63,7 @@ class BannerController {
         }
     }
 
-    // [Post] /banner/create
+    // [POST] /banner/create
     async createBanner(req, res, next) {
         try {
             const { imageUrl, title, description, buttonText, linkUrl, displayStartTime, displayEndTime, isActive, elements } = req.body
