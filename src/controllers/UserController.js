@@ -291,6 +291,38 @@ class UserController {
             next(err)
         }
     }
+    // [PUT] /user/account/address/setdefault/:id
+    async setDefaultAddressUser(req, res, next) {
+        try {
+            const { _id: userId } = req.user.data; // Lấy ID của người dùng từ req.user
+            const id = req.params.id; // Lấy ID của địa chỉ từ req.params
+
+            // Bước 1: Cập nhật tất cả các địa chỉ khác của người dùng thành không mặc định
+            await Address.updateMany({ user: userId }, { $set: { default: false } });
+
+            // Bước 2: Cập nhật địa chỉ có ID thành mặc định
+            const address = await Address.findOneAndUpdate(
+                { _id: id, user: userId },
+                { $set: { default: true } },
+                { new: true }
+            );
+
+            // Nếu không tìm thấy địa chỉ, trả về lỗi
+            if (!address) {
+                return res.status(404).json({ message: 'Address not found.' });
+            }
+
+            // Trả về phản hồi là địa chỉ đã được cập nhật
+            return res.status(200).json(address);
+        } catch (err) {
+            // Xử lý lỗi và chuyển sang middleware tiếp theo
+            next(err);
+        }
+    }
+
+
+
+
     // [GET] /user/account/payment
     async getPaymentUser(req, res, next) {
         try {
@@ -479,6 +511,8 @@ class UserController {
             next(err)
         }
     }
+
+
 }
 
 module.exports = new UserController()
