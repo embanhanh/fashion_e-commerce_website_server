@@ -112,23 +112,38 @@ class UserController {
     // [GET] /user/purchase
     async getPurchase(req, res, next) {
         try {
-            const user = req.user
-            const idUser = user._id
-            const orders = await OerderProduct.find({ user: idUser })
+            const user = req.user;
+            const idUser = user.data._id;
+            const { filterStatus } = req.query; // Get filterStatus from query parameters
+
+            // Build the query object
+            let query = { user: idUser };
+            if (filterStatus) {
+                query.status = filterStatus; // Add status filter if provided
+            }
+
+            const orders = await OrderProduct.find(query)
                 .populate({
                     path: 'products.product',
-                    populate: {
-                        path: 'product',
-                    },
+                    populate: [
+                        {
+                            path: 'product', // This populates the nested product document
+                            populate: { path: 'categories' } // This populates the categories within the product
+                        }
+                    ]
                 })
                 .populate('shippingAddress')
                 .populate('user')
-                .populate('vouchers.voucher')
-            return res.status(200).json(orders)
+                .populate('vouchers.voucher');
+
+            console.log(orders);
+
+            return res.status(200).json(orders);
         } catch (err) {
-            next(err)
+            next(err);
         }
     }
+
     // [GET] /user/purchase/order/:id
     async getOrderDetail(req, res, next) {
         try {
