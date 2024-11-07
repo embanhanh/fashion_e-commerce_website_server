@@ -294,34 +294,27 @@ class UserController {
     // [PUT] /user/account/address/setdefault/:id
     async setDefaultAddressUser(req, res, next) {
         try {
-            const { _id: userId } = req.user.data; // Lấy ID của người dùng từ req.user
-            const id = req.params.id; // Lấy ID của địa chỉ từ req.params
+            const { _id: userId } = req.user.data // Lấy ID của người dùng từ req.user
+            const id = req.params.id // Lấy ID của địa chỉ từ req.params
 
             // Bước 1: Cập nhật tất cả các địa chỉ khác của người dùng thành không mặc định
-            await Address.updateMany({ user: userId }, { $set: { default: false } });
+            await Address.updateMany({ user: userId }, { $set: { default: false } })
 
             // Bước 2: Cập nhật địa chỉ có ID thành mặc định
-            const address = await Address.findOneAndUpdate(
-                { _id: id, user: userId },
-                { $set: { default: true } },
-                { new: true }
-            );
+            const address = await Address.findOneAndUpdate({ _id: id, user: userId }, { $set: { default: true } }, { new: true })
 
             // Nếu không tìm thấy địa chỉ, trả về lỗi
             if (!address) {
-                return res.status(404).json({ message: 'Address not found.' });
+                return res.status(404).json({ message: 'Address not found.' })
             }
 
             // Trả về phản hồi là địa chỉ đã được cập nhật
-            return res.status(200).json(address);
+            return res.status(200).json(address)
         } catch (err) {
             // Xử lý lỗi và chuyển sang middleware tiếp theo
-            next(err);
+            next(err)
         }
     }
-
-
-
 
     // [GET] /user/account/payment
     async getPaymentUser(req, res, next) {
@@ -343,7 +336,7 @@ class UserController {
     // [GET] /user/clients
     async getClients(req, res, next) {
         try {
-            const { name, phone, totalSpent, orderCount, clientType } = req.query
+            const { name, phone, totalSpent, orderCount, clientType, userIds } = req.query
             let query = { role: 'user' }
 
             // Thêm các điều kiện lọc
@@ -355,6 +348,10 @@ class UserController {
             }
             if (clientType) {
                 query.clientType = clientType
+            }
+
+            if (userIds && userIds.length > 0) {
+                query._id = { $in: userIds }
             }
 
             const clients = await User.find(query)
@@ -511,8 +508,6 @@ class UserController {
             next(err)
         }
     }
-
-
 }
 
 module.exports = new UserController()
