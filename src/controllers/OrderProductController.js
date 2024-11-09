@@ -4,6 +4,7 @@ const Product = require('../models/ProductModel')
 const Address = require('../models/AddressModel')
 const Voucher = require('../models/VoucherModel')
 const Cart = require('../models/CartModel')
+const User = require('../models/UserModel')
 const mongoose = require('mongoose')
 const { admin } = require('../configs/FirebaseConfig')
 
@@ -88,7 +89,17 @@ class OrderProductController {
         const userId = req.user.data._id
 
         try {
-            const { products, paymentMethod, productsPrice, shippingPrice, totalPrice, shippingAddress, user, vouchers } = req.body
+            const {
+                products,
+                paymentMethod,
+                productsPrice,
+                shippingPrice,
+                totalPrice,
+                shippingAddress,
+                vouchers,
+                expectedDeliveryDate,
+                shippingMethod,
+            } = req.body
 
             // Kiểm tra và cập nhật số lượng tồn kho
             for (const item of products) {
@@ -121,6 +132,8 @@ class OrderProductController {
                 shippingAddress,
                 user: userId,
                 vouchers,
+                expectedDeliveryDate,
+                shippingMethod,
             })
 
             // Lưu đơn hàng
@@ -145,6 +158,18 @@ class OrderProductController {
                 await cart.save({ session })
             }
 
+            const user = await User.findById(userId)
+            user.vouchers.forEach((voucher) => {
+                if (vouchers.find((v) => v.toString() === voucher.voucher.toString())) {
+                    if (voucher.quantity > 1) {
+                        voucher.quantity -= 1
+                    } else {
+                        user.vouchers = user.vouchers.filter((v) => v.voucher.toString() !== voucher.voucher.toString())
+                    }
+                }
+            })
+            await user.save({ session })
+
             // Cam kết giao dịch
             await session.commitTransaction()
             session.endSession()
@@ -159,34 +184,34 @@ class OrderProductController {
     }
 
     // [PUT] /order/update_status/:order_id
-    async updateOrderStatus(req, res, next) {
-        try {
-            const orderId = req.params.order_id
-            const userRole = req.user.data.role
-            const { status } = req.body
+    // async updateOrderStatus(req, res, next) {
+    //     try {
+    //         const orderId = req.params.order_id
+    //         const userRole = req.user.data.role
+    //         const { status } = req.body
 
-            if (userRole !== 'admin' && status !== 'cancelled') {
-                return res.status(403).json({ message: 'You are not authorized to update this order' })
-            }
+    //         if (userRole !== 'admin' && status !== 'cancelled') {
+    //             return res.status(403).json({ message: 'You are not authorized to update this order' })
+    //         }
 
-            if (userRole !== 'admin' && status === 'cancelled') {
-                const findOrder = await OrderProduct.findById(orderId)
-                if (findOrder.status !== 'pending' && findOrder.status !== 'processing') {
-                    return res.status(400).json({ message: 'You can only cancel pending or processing orders' })
-                }
-            }
+    //         if (userRole !== 'admin' && status === 'cancelled') {
+    //             const findOrder = await OrderProduct.findById(orderId)
+    //             if (findOrder.status !== 'pending' && findOrder.status !== 'processing') {
+    //                 return res.status(400).json({ message: 'You can only cancel pending or processing orders' })
+    //             }
+    //         }
 
-            const updatedOrder = await OrderProduct.findById(orderId)
+    //         const updatedOrder = await OrderProduct.findById(orderId)
 
-            if (!updatedOrder) {
-                return res.status(404).json({ message: 'Order not found' })
-            }
+    //         if (!updatedOrder) {
+    //             return res.status(404).json({ message: 'Order not found' })
+    //         }
 
-            res.status(200).json(updatedOrder)
-        } catch (error) {
-            next(err)
-        }
-    }
+    //         res.status(200).json(updatedOrder)
+    //     } catch (error) {
+    //         next(err)
+    //     }
+    // }
     // [PUT] /order/update-status-many
     async updateOrderStatusMany(req, res, next) {
         try {
@@ -196,7 +221,7 @@ class OrderProductController {
 
             for (const orderId of orderIds) {
                 if (userRole !== 'admin' && status !== 'cancelled') {
-                    return res.status(403).json({ message: 'You are not authorized to update this order' })
+                    return res.status(403).json({ message: 'Bạn không có đủ quyền cập nhật trạng thái đơn hàng' })
                 }
                 const findOrder = await OrderProduct.findById(orderId).populate('products.product')
                 if (!findOrder) {
@@ -224,6 +249,23 @@ class OrderProductController {
                                 const productInStock = await Product.findById(productVariant.product)
                                 productInStock.stockQuantity += product.quantity
                                 await productInStock.save()
+                            }
+                        }
+                        if (status === 'delivering') {
+                            updatedOrder.deliveredAt = new Date()
+                            await updatedOrder.save()
+                        }
+                        if (status === 'delivered') {
+                            const order = await OrderProduct.find({ user: updatedOrder.user })
+                            if (order.length >= 10 && order.length <= 50) {
+                                const user = await User.findById(updatedOrder.user)
+                                user.clientType = 'potential'
+                                await user.save()
+                            }
+                            if (order.length > 50) {
+                                const user = await User.findById(updatedOrder.user)
+                                user.clientType = 'loyal'
+                                await user.save()
                             }
                         }
                         notifications.push({
@@ -264,7 +306,7 @@ class OrderProductController {
             next(error)
         }
     }
-    // [PUT] /order/update/:order_id
+    // [PUT] /order/update/:order_id Chưa hoàn thành
     async updateOrder(req, res, next) {
         try {
             const orderId = req.params.order_id

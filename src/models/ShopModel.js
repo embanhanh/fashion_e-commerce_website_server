@@ -11,6 +11,10 @@ const ShopSchema = new Schema(
             type: String,
             default: '',
         },
+        location: {
+            lat: { type: Number, default: 0 },
+            lng: { type: Number, default: 0 },
+        },
         email: { type: String, default: '' },
         phone: { type: String, default: '' },
         socialMedia: {

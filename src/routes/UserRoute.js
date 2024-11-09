@@ -17,7 +17,14 @@ router.delete('/account/address/delete/:id', authenticateToken, userController.d
 router.put('/account/address/setdefault/:id', authenticateToken, userController.setDefaultAddressUser)
 router.get('/account/address', authenticateToken, userController.getAddressUser)
 router.get('/account/payment', authenticateToken, userController.getPaymentUser)
+router.get('/account/voucher', authenticateToken, userController.getVoucherUser)
 router.get('/purchase/order/:id', authenticateToken, userController.getOrderDetail)
 router.get('/purchase', authenticateToken, userController.getPurchase)
-
+router.put('/clients/block/:userId', authenticateToken, userController.blockClient)
+router.patch('/clients/block-many', authenticateToken, userController.blockManyClient)
+router.put('/clients/unblock/:userId', authenticateToken, userController.unblockClient)
+router.patch('/clients/unblock-many', authenticateToken, userController.unblockManyClient)
+router.put('/clients/update-client-type/:userId', authenticateToken, userController.updateClientType)
+router.patch('/clients/update-client-type-many', authenticateToken, userController.updateManyClientType)
+router.get('/clients', authenticateToken, userController.getClients)
 module.exports = router

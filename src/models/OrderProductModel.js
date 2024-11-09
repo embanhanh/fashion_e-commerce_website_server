@@ -20,7 +20,11 @@ const OrderProducts = new Schema(
         paidAt: { type: Date, default: null },
         deliveredAt: { type: Date, default: null },
         vouchers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'vouchers' }],
-        shippingMethod: { type: String, enum: ['default', 'fast', 'express'], default: 'default' },
+        shippingMethod: { type: String, enum: ['basic', 'fast', 'express'], default: 'basic' },
+        expectedDeliveryDate: {
+            startDate: { type: Date, default: null },
+            endDate: { type: Date, default: null },
+        },
     },
     { timestamps: true }
 )

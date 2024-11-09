@@ -30,6 +30,12 @@ class UserController {
                 return res.status(400).json({ message: 'Tài khoản hoặc mật khẩu không chính xác, vui lòng thử lại' })
             }
 
+            if (user.isBlocked) {
+                return res.status(400).json({
+                    message: 'Tài khoản của bạn đã bị khóa. Vui lòng liên hệ chủ shop để biết thêm chi tiết',
+                })
+            }
+
             // Tạo token JWT
             const accessToken = await gennerateAccessToken({ data: user })
             const refreshToken = await gennerateRefreshToken({ data: user })
@@ -48,6 +54,14 @@ class UserController {
             const result = await verifyFirebaseToken(token)
             if (result.success) {
                 let user = await User.findOne({ id: result.user.uid })
+                if (user && user.isBlocked) {
+                    return res.status(400).json({
+                        message:
+                            'Tài khoản của bạn đã bị khóa vì các lý do sau: ' +
+                            user.blockReasons.join(', ') +
+                            '; Vui lòng liên hệ chủ shop để biết thêm chi tiết',
+                    })
+                }
                 if (!user) {
                     user = await User.create({
                         id: result.user.uid,
@@ -227,22 +241,23 @@ class UserController {
     async createAddressUser(req, res, next) {
         try {
             const { _id: userId } = req.user.data
-            const { name, phone, location, type, default: isDefault } = req.body
+            const { name, phone, location, type, default: isDefault, address } = req.body
 
-            if (isDefault) {
+            if (isDefault === true) {
                 await Address.updateMany({ user: userId }, { $set: { default: false } })
             }
 
-            const address = await Address.create({
+            const newAddress = await Address.create({
                 user: userId,
                 name,
                 phone,
                 location,
                 type,
                 default: isDefault,
+                address,
             })
 
-            return res.status(201).json(address)
+            return res.status(201).json(newAddress)
         } catch (err) {
             next(err)
         }
@@ -251,14 +266,14 @@ class UserController {
     async updateAddressUser(req, res, next) {
         try {
             const { _id: userId } = req.user.data
-            const { name, phone, location, type, default: isDefault } = req.body
+            const { name, phone, location, type, default: isDefault, address } = req.body
             const id = req.params.id
 
-            if (isDefault) {
+            if (isDefault === true) {
                 await Address.updateMany({ user: userId }, { $set: { default: false } })
             }
 
-            const address = await Address.findOneAndUpdate(
+            const updatedAddress = await Address.findOneAndUpdate(
                 { _id: id, user: userId },
                 {
                     name,
@@ -266,12 +281,13 @@ class UserController {
                     location,
                     type,
                     default: isDefault,
+                    address,
                 }
             )
-            if (!address) {
+            if (!updatedAddress) {
                 return res.status(404).json({ message: 'No address founded.' })
             }
-            return res.status(200).json(address)
+            return res.status(200).json(updatedAddress)
         } catch (err) {
             next(err)
         }
@@ -293,34 +309,27 @@ class UserController {
     // [PUT] /user/account/address/setdefault/:id
     async setDefaultAddressUser(req, res, next) {
         try {
-            const { _id: userId } = req.user.data; // Lấy ID của người dùng từ req.user
-            const id = req.params.id; // Lấy ID của địa chỉ từ req.params
+            const { _id: userId } = req.user.data // Lấy ID của người dùng từ req.user
+            const id = req.params.id // Lấy ID của địa chỉ từ req.params
 
             // Bước 1: Cập nhật tất cả các địa chỉ khác của người dùng thành không mặc định
-            await Address.updateMany({ user: userId }, { $set: { default: false } });
+            await Address.updateMany({ user: userId }, { $set: { default: false } })
 
             // Bước 2: Cập nhật địa chỉ có ID thành mặc định
-            const address = await Address.findOneAndUpdate(
-                { _id: id, user: userId },
-                { $set: { default: true } },
-                { new: true }
-            );
+            const address = await Address.findOneAndUpdate({ _id: id, user: userId }, { $set: { default: true } }, { new: true })
 
             // Nếu không tìm thấy địa chỉ, trả về lỗi
             if (!address) {
-                return res.status(404).json({ message: 'Address not found.' });
+                return res.status(404).json({ message: 'Address not found.' })
             }
 
             // Trả về phản hồi là địa chỉ đã được cập nhật
-            return res.status(200).json(address);
+            return res.status(200).json(address)
         } catch (err) {
             // Xử lý lỗi và chuyển sang middleware tiếp theo
-            next(err);
+            next(err)
         }
     }
-
-
-
 
     // [GET] /user/account/payment
     async getPaymentUser(req, res, next) {
@@ -333,14 +342,187 @@ class UserController {
     async getVoucherUser(req, res, next) {
         try {
             const { _id: userId } = req.user.data
-            const vouchers = await Voucher.find({ user: userId }).populate('applicableProducts')
-            return res.status(200).json(vouchers)
+            const user = await User.findOne({ _id: userId }).populate('vouchers.voucher')
+            return res.status(200).json(user.vouchers)
         } catch (err) {
             next(err)
         }
     }
+    // [GET] /user/clients
+    async getClients(req, res, next) {
+        try {
+            const { name, phone, totalSpent, orderCount, clientType, userIds } = req.query
+            let query = { role: 'user' }
 
+            // Thêm các điều kiện lọc
+            if (name) {
+                query.name = { $regex: name, $options: 'i' }
+            }
+            if (phone) {
+                query.phone = { $regex: phone, $options: 'i' }
+            }
+            if (clientType) {
+                query.clientType = clientType
+            }
 
+            if (userIds && userIds.length > 0) {
+                query._id = { $in: userIds }
+            }
+
+            const clients = await User.find(query)
+            const orders = await OerderProduct.find({ user: { $in: clients.map((client) => client._id) } })
+            const userStats = {}
+
+            // Tính toán số đơn hàng và tổng tiền cho mỗi user
+            orders.forEach((order) => {
+                if (!userStats[order.user.toString()]) {
+                    userStats[order.user.toString()] = {
+                        orderCount: 0,
+                        totalSpent: 0,
+                    }
+                }
+                userStats[order.user.toString()].orderCount++
+                userStats[order.user.toString()].totalSpent += order.totalPrice
+            })
+
+            // Lọc và thêm thông tin vào kết quả
+            let clientsWithStats = clients.map((client) => {
+                const stats = userStats[client._id.toString()] || { orderCount: 0, totalSpent: 0 }
+                return {
+                    ...client.toObject(),
+                    orderCount: stats.orderCount,
+                    totalSpent: stats.totalSpent,
+                }
+            })
+
+            // Lọc theo totalSpent và orderCount
+            if (totalSpent) {
+                clientsWithStats = clientsWithStats.filter((client) => client.totalSpent >= parseInt(totalSpent))
+            }
+            if (orderCount) {
+                clientsWithStats = clientsWithStats.filter((client) => client.orderCount >= parseInt(orderCount))
+            }
+
+            return res.status(200).json(clientsWithStats)
+        } catch (err) {
+            next(err)
+        }
+    }
+    // [PUT] /user/clients/block/:userId
+    async blockClient(req, res, next) {
+        try {
+            const { userId } = req.params
+            const { reasons } = req.body
+            const user = await User.findOne({ _id: userId })
+            if (!user) {
+                return res.status(404).json({ message: 'Không tìm thấy người dùng' })
+            }
+            user.blockReasons = reasons
+            user.isBlocked = true
+            await user.save()
+            return res.status(200).json(user)
+        } catch (err) {
+            next(err)
+        }
+    }
+    // [PATH] /user/clients/block-many
+    async blockManyClient(req, res, next) {
+        try {
+            const { userIds, reasons } = req.body
+            const users = await User.find({ _id: { $in: userIds } })
+            const updateOperations = users
+                .filter((user) => !user.isBlocked)
+                .map((user) => ({
+                    updateOne: {
+                        filter: { _id: user._id },
+                        update: {
+                            blockReasons: reasons,
+                            isBlocked: true,
+                        },
+                    },
+                }))
+
+            if (updateOperations.length > 0) {
+                await User.bulkWrite(updateOperations)
+            }
+            const updatedUsers = await User.find({ _id: { $in: userIds } })
+            return res.status(200).json(updatedUsers)
+        } catch (err) {
+            next(err)
+        }
+    }
+    // [PUT] /user/clients/unblock/:userId
+    async unblockClient(req, res, next) {
+        try {
+            const { userId } = req.params
+            const user = await User.findOne({ _id: userId })
+            if (!user) {
+                return res.status(404).json({ message: 'Không tìm thấy người dùng' })
+            }
+            user.isBlocked = false
+            user.blockReasons = []
+            await user.save()
+            return res.status(200).json(user)
+        } catch (err) {
+            next(err)
+        }
+    }
+    // [PATH] /user/clients/unblock-many
+    async unblockManyClient(req, res, next) {
+        try {
+            const { userIds } = req.body
+            const users = await User.find({ _id: { $in: userIds } })
+            const updateOperations = users
+                .filter((user) => user.isBlocked)
+                .map((user) => ({
+                    updateOne: { filter: { _id: user._id }, update: { isBlocked: false, blockReasons: [] } },
+                }))
+            if (updateOperations.length > 0) {
+                await User.bulkWrite(updateOperations)
+            }
+            const updatedUsers = await User.find({ _id: { $in: userIds } })
+            return res.status(200).json(updatedUsers)
+        } catch (err) {
+            next(err)
+        }
+    }
+    // [PUT] /user/clients/update-client-type/:userId
+    async updateClientType(req, res, next) {
+        try {
+            const { userId } = req.params
+            const { clientType } = req.body
+            const user = await User.findOne({ _id: userId })
+            if (!user) {
+                return res.status(404).json({ message: 'Không tìm thấy người dùng' })
+            }
+            if (clientType && user.clientType !== clientType) {
+                user.clientType = clientType
+                await user.save()
+            }
+            return res.status(200).json(user)
+        } catch (err) {
+            next(err)
+        }
+    }
+    // [PATH] /user/clients/update-client-type-many
+    async updateManyClientType(req, res, next) {
+        try {
+            const { userIds, clientType } = req.body
+            const users = await User.find({ _id: { $in: userIds } })
+            const updateOperations = users
+                .filter((user) => user.clientType !== clientType)
+                .map((user) => ({
+                    updateOne: { filter: { _id: user._id }, update: { clientType: clientType } },
+                }))
+            if (updateOperations.length > 0) {
+                await User.bulkWrite(updateOperations)
+            }
+            const updatedUsers = await User.find({ _id: { $in: userIds } })
+            return res.status(200).json(updatedUsers)
+        } catch (err) {
+            next(err)
+        }
+    }
 }
 
 module.exports = new UserController()

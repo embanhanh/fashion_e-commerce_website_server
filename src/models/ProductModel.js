@@ -24,6 +24,12 @@ const Product = new Schema(
         minOrderQuantity: { type: Number, default: 1 },
         maxOrderQuantity: { type: Number, default: 100 },
         soldQuantity: { type: Number, default: 0 },
+        shippingInfo: [
+            {
+                type: { type: String, enum: ['basic', 'fast', 'express'] },
+                price: { type: Number, default: 0 },
+            },
+        ],
     },
     { timestamps: true }
 )

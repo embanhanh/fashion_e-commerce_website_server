@@ -1,4 +1,7 @@
 const Voucher = require('../models/VoucherModel')
+const User = require('../models/UserModel')
+const mongoose = require('mongoose')
+const { admin } = require('../configs/FirebaseConfig')
 
 class VoucherController {
     //[GET] /voucher
@@ -72,6 +75,110 @@ class VoucherController {
                 return res.status(404).json({ message: 'Không tìm thấy voucher nào để xóa' })
             }
             res.json(voucherIds)
+        } catch (err) {
+            next(err)
+        }
+    }
+    //[PUT] /voucher/give/:userId
+    async giveVoucher(req, res, next) {
+        try {
+            const { userId } = req.params
+            const user = await User.findById(userId)
+            if (!user) {
+                return res.status(404).json({ message: 'Không tìm thấy người dùng' })
+            }
+            const notifications = []
+            const { voucherIds, message } = req.body
+            voucherIds.forEach((voucherId) => {
+                if (user.vouchers.find((voucher) => voucher.voucher.toString() === voucherId)) {
+                    user.vouchers.find((voucher) => voucher.voucher.toString() === voucherId).quantity += 1
+                } else {
+                    user.vouchers.push({ voucher: voucherId, quantity: 1 })
+                }
+            })
+            await user.save()
+            //send message to notification
+            notifications.push({
+                userId: userId.toString(),
+                orderId: '',
+                message: `Bạn đã nhận được các mã voucher ${voucherIds.join(', ')} từ shop với lời nhắn: '${message}'`,
+                createdAt: new Date(),
+                expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+                read: false,
+            })
+            const batch = admin.firestore().batch()
+            for (const notification of notifications) {
+                const notificationRef = admin.firestore().collection('notifications').doc(notification.userId)
+                batch.set(
+                    notificationRef,
+                    {
+                        notifications: admin.firestore.FieldValue.arrayUnion(notification),
+                    },
+                    { merge: true }
+                )
+            }
+            await batch.commit()
+            res.json(user)
+        } catch (err) {
+            next(err)
+        }
+    }
+    //[PUT] /voucher/give-many
+    async giveManyVoucher(req, res, next) {
+        try {
+            const { userIds, voucherIds, message } = req.body
+
+            // Tìm tất cả user có trong danh sách userIds
+            const users = await User.find({ _id: { $in: userIds } })
+
+            // Khởi tạo batch Firestore
+            const batch = admin.firestore().batch()
+
+            // Tạo thời gian hết hạn cho thông báo
+            const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+
+            // Thêm voucher và tạo thông báo cho mỗi user
+            users.forEach((user) => {
+                voucherIds.forEach((voucherId) => {
+                    if (user.vouchers.find((voucher) => voucher.voucher.toString() === voucherId)) {
+                        user.vouchers.find((voucher) => voucher.voucher.toString() === voucherId).quantity += 1
+                    } else {
+                        user.vouchers.push({ voucher: voucherId, quantity: 1 })
+                    }
+                })
+            })
+
+            // Lưu tất cả users đã cập nhật vào MongoDB cùng lúc
+            await User.bulkWrite(
+                users.map((user) => ({
+                    updateOne: {
+                        filter: { _id: user._id },
+                        update: { vouchers: user.vouchers },
+                    },
+                }))
+            )
+
+            // Duyệt qua từng user để thêm thông báo vào Firestore batch
+            users.forEach((user) => {
+                const notification = {
+                    userId: user._id.toString(),
+                    orderId: '',
+                    message: `Bạn đã nhận được các mã voucher ${voucherIds.join(', ')} từ shop với lời nhắn: '${message}'`,
+                    createdAt: new Date(),
+                    expiresAt,
+                    read: false,
+                }
+
+                // Tạo document reference và thêm vào batch
+                const notificationRef = admin.firestore().collection('notifications').doc(user._id.toString())
+                batch.set(notificationRef, { notifications: admin.firestore.FieldValue.arrayUnion(notification) }, { merge: true })
+            })
+
+            // Commit batch thông báo Firestore
+            await batch.commit()
+
+            // Gửi phản hồi thành công
+            res.json(userIds)
         } catch (err) {
             next(err)
         }
