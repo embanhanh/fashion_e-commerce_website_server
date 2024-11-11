@@ -3,7 +3,7 @@ const jwt = require('jsonwebtoken')
 
 const User = require('../models/UserModel')
 const Address = require('../models/AddressModel')
-const OerderProduct = require('../models/OrderProductModel')
+const OrderProduct = require('../models/OrderProductModel')
 const Voucher = require('../models/VoucherModel')
 const { bucket } = require('../configs/FirebaseConfig')
 
@@ -30,12 +30,6 @@ class UserController {
                 return res.status(400).json({ message: 'Tài khoản hoặc mật khẩu không chính xác, vui lòng thử lại' })
             }
 
-            if (user.isBlocked) {
-                return res.status(400).json({
-                    message: 'Tài khoản của bạn đã bị khóa. Vui lòng liên hệ chủ shop để biết thêm chi tiết',
-                })
-            }
-
             // Tạo token JWT
             const accessToken = await gennerateAccessToken({ data: user })
             const refreshToken = await gennerateRefreshToken({ data: user })
@@ -54,14 +48,6 @@ class UserController {
             const result = await verifyFirebaseToken(token)
             if (result.success) {
                 let user = await User.findOne({ id: result.user.uid })
-                if (user && user.isBlocked) {
-                    return res.status(400).json({
-                        message:
-                            'Tài khoản của bạn đã bị khóa vì các lý do sau: ' +
-                            user.blockReasons.join(', ') +
-                            '; Vui lòng liên hệ chủ shop để biết thêm chi tiết',
-                    })
-                }
                 if (!user) {
                     user = await User.create({
                         id: result.user.uid,
@@ -164,7 +150,7 @@ class UserController {
             const user = req.user
             const idUser = user._id
             const id = req.params.id
-            const order = await OerderProduct.findOne({ user: idUser, _id: id })
+            const order = await OrderProduct.findOne({ user: idUser, _id: id })
                 .populate({
                     path: 'products.product',
                     populate: {
@@ -241,23 +227,22 @@ class UserController {
     async createAddressUser(req, res, next) {
         try {
             const { _id: userId } = req.user.data
-            const { name, phone, location, type, default: isDefault, address } = req.body
+            const { name, phone, location, type, default: isDefault } = req.body
 
-            if (isDefault === true) {
+            if (isDefault) {
                 await Address.updateMany({ user: userId }, { $set: { default: false } })
             }
 
-            const newAddress = await Address.create({
+            const address = await Address.create({
                 user: userId,
                 name,
                 phone,
                 location,
                 type,
                 default: isDefault,
-                address,
             })
 
-            return res.status(201).json(newAddress)
+            return res.status(201).json(address)
         } catch (err) {
             next(err)
         }
@@ -266,14 +251,14 @@ class UserController {
     async updateAddressUser(req, res, next) {
         try {
             const { _id: userId } = req.user.data
-            const { name, phone, location, type, default: isDefault, address } = req.body
+            const { name, phone, location, type, default: isDefault } = req.body
             const id = req.params.id
 
-            if (isDefault === true) {
+            if (isDefault) {
                 await Address.updateMany({ user: userId }, { $set: { default: false } })
             }
 
-            const updatedAddress = await Address.findOneAndUpdate(
+            const address = await Address.findOneAndUpdate(
                 { _id: id, user: userId },
                 {
                     name,
@@ -281,13 +266,12 @@ class UserController {
                     location,
                     type,
                     default: isDefault,
-                    address,
                 }
             )
-            if (!updatedAddress) {
+            if (!address) {
                 return res.status(404).json({ message: 'No address founded.' })
             }
-            return res.status(200).json(updatedAddress)
+            return res.status(200).json(address)
         } catch (err) {
             next(err)
         }
@@ -309,27 +293,34 @@ class UserController {
     // [PUT] /user/account/address/setdefault/:id
     async setDefaultAddressUser(req, res, next) {
         try {
-            const { _id: userId } = req.user.data // Lấy ID của người dùng từ req.user
-            const id = req.params.id // Lấy ID của địa chỉ từ req.params
+            const { _id: userId } = req.user.data; // Lấy ID của người dùng từ req.user
+            const id = req.params.id; // Lấy ID của địa chỉ từ req.params
 
             // Bước 1: Cập nhật tất cả các địa chỉ khác của người dùng thành không mặc định
-            await Address.updateMany({ user: userId }, { $set: { default: false } })
+            await Address.updateMany({ user: userId }, { $set: { default: false } });
 
             // Bước 2: Cập nhật địa chỉ có ID thành mặc định
-            const address = await Address.findOneAndUpdate({ _id: id, user: userId }, { $set: { default: true } }, { new: true })
+            const address = await Address.findOneAndUpdate(
+                { _id: id, user: userId },
+                { $set: { default: true } },
+                { new: true }
+            );
 
             // Nếu không tìm thấy địa chỉ, trả về lỗi
             if (!address) {
-                return res.status(404).json({ message: 'Address not found.' })
+                return res.status(404).json({ message: 'Address not found.' });
             }
 
             // Trả về phản hồi là địa chỉ đã được cập nhật
-            return res.status(200).json(address)
+            return res.status(200).json(address);
         } catch (err) {
             // Xử lý lỗi và chuyển sang middleware tiếp theo
-            next(err)
+            next(err);
         }
     }
+
+
+
 
     // [GET] /user/account/payment
     async getPaymentUser(req, res, next) {
@@ -342,8 +333,8 @@ class UserController {
     async getVoucherUser(req, res, next) {
         try {
             const { _id: userId } = req.user.data
-            const user = await User.findOne({ _id: userId }).populate('vouchers.voucher')
-            return res.status(200).json(user.vouchers)
+            const vouchers = await Voucher.find({ user: userId }).populate('applicableProducts')
+            return res.status(200).json(vouchers)
         } catch (err) {
             next(err)
         }
@@ -523,6 +514,7 @@ class UserController {
             next(err)
         }
     }
+
 }
 
 module.exports = new UserController()
