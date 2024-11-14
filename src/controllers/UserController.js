@@ -112,14 +112,14 @@ class UserController {
     // [GET] /user/purchase
     async getPurchase(req, res, next) {
         try {
-            const user = req.user;
-            const idUser = user.data._id;
-            const { filterStatus } = req.query; // Get filterStatus from query parameters
+            const user = req.user
+            const idUser = user.data._id
+            const { filterStatus } = req.query // Get filterStatus from query parameters
 
             // Build the query object
-            let query = { user: idUser };
+            let query = { user: idUser }
             if (filterStatus) {
-                query.status = filterStatus; // Add status filter if provided
+                query.status = filterStatus // Add status filter if provided
             }
 
             const orders = await OrderProduct.find(query)
@@ -128,19 +128,19 @@ class UserController {
                     populate: [
                         {
                             path: 'product', // This populates the nested product document
-                            populate: { path: 'categories' } // This populates the categories within the product
-                        }
-                    ]
+                            populate: { path: 'categories' }, // This populates the categories within the product
+                        },
+                    ],
                 })
                 .populate('shippingAddress')
                 .populate('user')
-                .populate('vouchers.voucher');
+                .populate('vouchers.voucher')
 
-            console.log(orders);
+            console.log(orders)
 
-            return res.status(200).json(orders);
+            return res.status(200).json(orders)
         } catch (err) {
-            next(err);
+            next(err)
         }
     }
 
@@ -293,34 +293,27 @@ class UserController {
     // [PUT] /user/account/address/setdefault/:id
     async setDefaultAddressUser(req, res, next) {
         try {
-            const { _id: userId } = req.user.data; // Lấy ID của người dùng từ req.user
-            const id = req.params.id; // Lấy ID của địa chỉ từ req.params
+            const { _id: userId } = req.user.data // Lấy ID của người dùng từ req.user
+            const id = req.params.id // Lấy ID của địa chỉ từ req.params
 
             // Bước 1: Cập nhật tất cả các địa chỉ khác của người dùng thành không mặc định
-            await Address.updateMany({ user: userId }, { $set: { default: false } });
+            await Address.updateMany({ user: userId }, { $set: { default: false } })
 
             // Bước 2: Cập nhật địa chỉ có ID thành mặc định
-            const address = await Address.findOneAndUpdate(
-                { _id: id, user: userId },
-                { $set: { default: true } },
-                { new: true }
-            );
+            const address = await Address.findOneAndUpdate({ _id: id, user: userId }, { $set: { default: true } }, { new: true })
 
             // Nếu không tìm thấy địa chỉ, trả về lỗi
             if (!address) {
-                return res.status(404).json({ message: 'Address not found.' });
+                return res.status(404).json({ message: 'Address not found.' })
             }
 
             // Trả về phản hồi là địa chỉ đã được cập nhật
-            return res.status(200).json(address);
+            return res.status(200).json(address)
         } catch (err) {
             // Xử lý lỗi và chuyển sang middleware tiếp theo
-            next(err);
+            next(err)
         }
     }
-
-
-
 
     // [GET] /user/account/payment
     async getPaymentUser(req, res, next) {
@@ -361,7 +354,7 @@ class UserController {
             }
 
             const clients = await User.find(query)
-            const orders = await OerderProduct.find({ user: { $in: clients.map((client) => client._id) } })
+            const orders = await OrderProduct.find({ user: { $in: clients.map((client) => client._id) } })
             const userStats = {}
 
             // Tính toán số đơn hàng và tổng tiền cho mỗi user
@@ -514,7 +507,6 @@ class UserController {
             next(err)
         }
     }
-
 }
 
 module.exports = new UserController()
