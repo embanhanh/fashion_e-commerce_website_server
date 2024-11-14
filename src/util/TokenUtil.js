@@ -3,7 +3,7 @@ require('dotenv').config()
 const { admin } = require('../configs/FirebaseConfig')
 
 const gennerateAccessToken = async (payload) => {
-    const token = jwt.sign(payload, 'access_token', { expiresIn: '1h' })
+    const token = jwt.sign(payload, 'access_token', { expiresIn: '3h' })
 
     return token
 }

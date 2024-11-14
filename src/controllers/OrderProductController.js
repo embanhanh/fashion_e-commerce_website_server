@@ -23,7 +23,7 @@ class OrderProductController {
                 filterConditions.paymentMethod = paymentMethod
             }
 
-            if (shippingMethod) {
+            if (shippingMethod && shippingMethod !== 'all') {
                 filterConditions.shippingMethod = shippingMethod
             }
 
@@ -53,7 +53,7 @@ class OrderProductController {
                     order.products.some((product) => product.product.product.name.toLowerCase().includes(productName.toLowerCase().trim()))
                 )
             }
-
+            console.log(orderProducts.length)
             res.status(200).json(orderProducts)
         } catch (err) {
             next(err)
@@ -80,8 +80,8 @@ class OrderProductController {
         } catch (err) {
             next(err)
         }
-    }  
-    
+    }
+
 
     // [POST] /order/create
     async createOrder(req, res, next) {
@@ -272,15 +272,14 @@ class OrderProductController {
                         notifications.push({
                             userId: updatedOrder.user.toString(),
                             orderId: updatedOrder._id.toString(),
-                            message: `Đơn hàng ${updatedOrder._id} của bạn đã ${
-                                status === 'processing'
-                                    ? 'được xác nhận'
-                                    : status === 'delivering'
+                            message: `Đơn hàng ${updatedOrder._id} của bạn đã ${status === 'processing'
+                                ? 'được xác nhận'
+                                : status === 'delivering'
                                     ? 'được giao'
                                     : status === 'delivered'
-                                    ? 'được giao hàng thành công'
-                                    : 'bị hủy'
-                            }`,
+                                        ? 'được giao hàng thành công'
+                                        : 'bị hủy'
+                                }`,
                             createdAt: new Date(),
                             expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
                             read: false,
