@@ -21,7 +21,7 @@ const authenticateToken = (req, res, next) => {
 
 const authorizeRole = (roles) => {
     return (req, res, next) => {
-        if (!roles.includes(req.user.role)) {
+        if (!roles.includes(req.user.data.role)) {
             return res.sendStatus(403).json({ message: 'Bạn không có quyền truy cập' })
         }
         next()

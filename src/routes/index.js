@@ -14,12 +14,12 @@ function route(app) {
     app.use('/product', productRouter)
     app.use('/order', authenticateToken, orderRouter)
     app.use('/category', categoryRouter)
-    app.use('/cart', cartRouter)
+    app.use('/cart', authenticateToken, cartRouter)
     app.use('/shop', shopRouter)
     app.use('/banner', bannerRouter)
     app.use('/voucher', voucherRouter)
     app.use('/promotional-combo', promotionalComboRouter)
-    app.use('/webhook', webhookRouter)
+    app.use('/webhook', authenticateToken, webhookRouter)
 }
 
 module.exports = route

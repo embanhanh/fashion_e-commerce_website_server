@@ -173,7 +173,7 @@ class ProductController {
                     },
                 })
             if (!product) {
-                return res.status(404).json({ message: 'No product founded.' })
+                return res.status(404).json({ message: 'Không tìm thấy sản phẩm' })
             }
             return res.json(product)
         } catch (err) {
