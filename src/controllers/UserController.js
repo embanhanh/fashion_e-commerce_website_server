@@ -227,7 +227,7 @@ class UserController {
     async createAddressUser(req, res, next) {
         try {
             const { _id: userId } = req.user.data
-            const { name, phone, location, type, default: isDefault } = req.body
+            const { name, phone, location, type, default: isDefault, address: newAddress } = req.body
 
             if (isDefault) {
                 await Address.updateMany({ user: userId }, { $set: { default: false } })
@@ -240,6 +240,7 @@ class UserController {
                 location,
                 type,
                 default: isDefault,
+                address: newAddress,
             })
 
             return res.status(201).json(address)
