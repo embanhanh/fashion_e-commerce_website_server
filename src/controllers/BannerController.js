@@ -36,7 +36,7 @@ class BannerController {
             const { bannerId } = req.params
             const banner = await Banner.findById(bannerId)
             if (!banner) {
-                return res.status(404).json({ message: 'Banner not found' })
+                return res.status(404).json({ message: 'Không tìm thấy banner' })
             }
             res.status(200).json(banner)
         } catch (err) {
@@ -48,14 +48,14 @@ class BannerController {
     async editBanner(req, res, next) {
         try {
             const { bannerId } = req.params
-            const { imageUrl, title, description, buttonText, linkUrl, displayStartTime, displayEndTime, isActive, elements } = req.body
+            const { imageUrl, title, description, buttonText, linkUrl, displayStartTime, displayEndTime } = req.body
             const banner = await Banner.findByIdAndUpdate(
                 bannerId,
-                { imageUrl, title, description, buttonText, linkUrl, displayStartTime, displayEndTime, isActive, elements },
+                { imageUrl, title, description, buttonText, linkUrl, displayStartTime, displayEndTime },
                 { new: true }
             )
             if (!banner) {
-                return res.status(404).json({ message: 'Banner not found' })
+                return res.status(404).json({ message: 'Không tìm thấy banner' })
             }
             res.status(200).json(banner)
         } catch (err) {
@@ -66,8 +66,8 @@ class BannerController {
     // [POST] /banner/create
     async createBanner(req, res, next) {
         try {
-            const { imageUrl, title, description, buttonText, linkUrl, displayStartTime, displayEndTime, isActive, elements } = req.body
-            const banner = new Banner({ imageUrl, title, description, buttonText, linkUrl, displayStartTime, displayEndTime, isActive, elements })
+            const { imageUrl, title, description, buttonText, linkUrl, displayStartTime, displayEndTime } = req.body
+            const banner = new Banner({ imageUrl, title, description, buttonText, linkUrl, displayStartTime, displayEndTime })
             await banner.save()
             res.status(200).json(banner)
         } catch (err) {
@@ -82,7 +82,7 @@ class BannerController {
             const banner = await Banner.findByIdAndDelete(bannerId)
 
             if (!banner) {
-                return res.status(404).json({ message: 'Banner not found' })
+                return res.status(404).json({ message: 'Không tìm thấy banner' })
             }
 
             res.status(200).json(banner)

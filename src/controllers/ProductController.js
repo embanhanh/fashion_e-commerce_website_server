@@ -9,7 +9,7 @@ class ProductController {
     // [GET] /product
     async getAllProduct(req, res, next) {
         try {
-            const { page = 1, limit = 12, category, priceRange, color, size, sort, stockQuantity, soldQuantity, search } = req.query
+            const { page = 1, limit = 12, category, priceRange, color, size, sort, stockQuantity, soldQuantity, search, rating, brand } = req.query
             const pipeline = []
 
             // Stage 1: Match products based on category and price
@@ -130,6 +130,13 @@ class ProductController {
                         break
                 }
                 pipeline.push(sortStage)
+            }
+
+            if (rating) {
+                pipeline.push({ $match: { rating: { $gte: Number(rating) } } })
+            }
+            if (brand) {
+                pipeline.push({ $match: { brand: { $regex: brand, $options: 'i' } } })
             }
 
             // Stage 5: Pagination
