@@ -14,9 +14,6 @@ class ProductController {
 
             // Stage 1: Match products based on category and price
             const match = {}
-            if (search) {
-                match.name = { $regex: search, $options: 'i' }
-            }
             if (category && category.length > 0) {
                 match.categories = {
                     $in: category
@@ -146,9 +143,41 @@ class ProductController {
             }
 
             // Execute the aggregation
-            const products = await Product.aggregate(pipeline)
+            let products = await Product.aggregate(pipeline)
 
             // Get total count for pagination
+            if (search) {
+                const finalSearch = search
+                    .toLowerCase()
+                    .trim()
+                    .replace(/đ/g, 'd')
+                    .normalize('NFD')
+                    .replace(/[\u0300-\u036f]/g, '')
+                    .replace(/[^a-zA-Z0-9\s]/g, '')
+                    .replace(/\s+/g, '')
+                console.log(finalSearch)
+                products = products.filter(
+                    (item) =>
+                        item.name
+                            .toLowerCase()
+                            .trim()
+                            .replace(/đ/g, 'd')
+                            .normalize('NFD')
+                            .replace(/[\u0300-\u036f]/g, '')
+                            .replace(/[^a-zA-Z0-9\s]/g, '')
+                            .replace(/\s+/g, '')
+                            .includes(finalSearch) ||
+                        item.description
+                            .toLowerCase()
+                            .trim()
+                            .replace(/đ/g, 'd')
+                            .normalize('NFD')
+                            .replace(/[\u0300-\u036f]/g, '')
+                            .replace(/[^a-zA-Z0-9\s]/g, '')
+                            .replace(/\s+/g, '')
+                            .includes(finalSearch)
+                )
+            }
             const countPipeline = [...pipeline]
             if (Number(limit) < 1000000) {
                 countPipeline.pop() // Remove $limit

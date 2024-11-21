@@ -19,7 +19,7 @@ function route(app) {
     app.use('/banner', bannerRouter)
     app.use('/voucher', voucherRouter)
     app.use('/promotional-combo', promotionalComboRouter)
-    app.use('/webhook', authenticateToken, webhookRouter)
+    app.use('/webhook', webhookRouter)
 }
 
 module.exports = route
