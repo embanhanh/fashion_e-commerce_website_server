@@ -80,8 +80,7 @@ class OrderProductController {
         } catch (err) {
             next(err)
         }
-    }  
-    
+    }
 
     // [POST] /order/create
     async createOrder(req, res, next) {
@@ -213,6 +212,7 @@ class OrderProductController {
     //         next(err)
     //     }
     // }
+
     // [PUT] /order/update-status-many
     async updateOrderStatusMany(req, res, next) {
         try {
@@ -239,12 +239,12 @@ class OrderProductController {
                         { _id: orderId, status: { $ne: 'cancelled' } },
                         { status },
                         { new: true }
-                    )
+                    ).populate('products.product')
 
                     if (updatedOrder) {
                         if (status === 'cancelled') {
                             for (const product of updatedOrder.products) {
-                                const productVariant = await ProductVariant.findById(product.product)
+                                const productVariant = await ProductVariant.findById(product.product._id)
                                 productVariant.stockQuantity += product.quantity
                                 await productVariant.save()
                                 const productInStock = await Product.findById(productVariant.product)
@@ -267,6 +267,15 @@ class OrderProductController {
                                 const user = await User.findById(updatedOrder.user)
                                 user.clientType = 'loyal'
                                 await user.save()
+                            }
+                            if (!updatedOrder.paidAt) {
+                                updatedOrder.paidAt = new Date()
+                                await updatedOrder.save()
+                            }
+                            for (const product of updatedOrder.products) {
+                                const productInStock = await Product.findById(product.product.product)
+                                productInStock.soldQuantity += product.quantity
+                                await productInStock.save()
                             }
                         }
                         notifications.push({

@@ -7,6 +7,7 @@ router.get('/:combo_id', promotionalComboController.getPromotionalComboById)
 router.post('/create', authenticateToken, authorizeRole(['admin']), promotionalComboController.createPromotionalCombo)
 router.put('/edit/:combo_id', authenticateToken, authorizeRole(['admin']), promotionalComboController.updatePromotionalCombo)
 router.post('/delete-many', authenticateToken, authorizeRole(['admin']), promotionalComboController.deleteManyPromotionalCombos)
+router.get('/get-by-product/:productId', promotionalComboController.getPromotionalComboByProductId)
 router.get('/', promotionalComboController.getAllPromotionalCombos)
 
 module.exports = router

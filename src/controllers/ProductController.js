@@ -12,29 +12,38 @@ class ProductController {
             const { page = 1, limit = 12, category, priceRange, color, size, sort, stockQuantity, soldQuantity, search, rating, brand } = req.query
             const pipeline = []
 
-            // Stage 1: Match products based on category and price
-            const match = {}
-            if (category && category.length > 0) {
-                match.categories = {
-                    $in: category
-                        .map((id) => {
-                            try {
-                                return new mongoose.Types.ObjectId(id)
-                            } catch (error) {
-                                console.error(`Invalid ObjectId: ${id}`)
-                                return null
-                            }
-                        })
-                        .filter((id) => id !== null),
-                }
+            const conditions = []
+            if (search) {
+                const searchRegex = new RegExp(search, 'i')
+                conditions.push({
+                    $or: [{ name: searchRegex }, { description: searchRegex }, { brand: searchRegex }, { material: searchRegex }],
+                })
             }
+
+            if (category && category.length > 0) {
+                conditions.push({
+                    categories: {
+                        $in: category
+                            .map((id) => {
+                                try {
+                                    return new mongoose.Types.ObjectId(id)
+                                } catch (error) {
+                                    console.error(`Invalid ObjectId: ${id}`)
+                                    return null
+                                }
+                            })
+                            .filter((id) => id !== null),
+                    },
+                })
+            }
+
             if (priceRange) {
                 try {
-                    const { min, max } = priceRange
-                    if (min || max) {
-                        match.originalPrice = {}
-                        if (min) match.originalPrice.$gte = Number(min)
-                        if (max) match.originalPrice.$lte = Number(max)
+                    const priceCondition = {}
+                    if (priceRange.min) priceCondition.$gte = Number(priceRange.min)
+                    if (priceRange.max) priceCondition.$lte = Number(priceRange.max)
+                    if (Object.keys(priceCondition).length > 0) {
+                        conditions.push({ originalPrice: priceCondition })
                     }
                 } catch (error) {
                     console.error('Error parsing priceRange:', error)
@@ -42,11 +51,11 @@ class ProductController {
             }
             if (stockQuantity) {
                 try {
-                    const { min, max } = stockQuantity
-                    if (min || max) {
-                        match.stockQuantity = {}
-                        if (min) match.stockQuantity.$gte = Number(min)
-                        if (max) match.stockQuantity.$lte = Number(max)
+                    const stockCondition = {}
+                    if (stockQuantity.min) stockCondition.$gte = Number(stockQuantity.min)
+                    if (stockQuantity.max) stockCondition.$lte = Number(stockQuantity.max)
+                    if (Object.keys(stockCondition).length > 0) {
+                        conditions.push({ stockQuantity: stockCondition })
                     }
                 } catch (error) {
                     console.error('Error parsing stockQuantity:', error)
@@ -55,31 +64,24 @@ class ProductController {
 
             if (soldQuantity) {
                 try {
-                    const { min, max } = soldQuantity
-                    if (min || max) {
-                        match.soldQuantity = {}
-                        if (min) match.soldQuantity.$gte = Number(min)
-
-                        if (max) match.soldQuantity.$lte = Number(max)
+                    const soldCondition = {}
+                    if (soldQuantity.min) soldCondition.$gte = Number(soldQuantity.min)
+                    if (soldQuantity.max) soldCondition.$lte = Number(soldQuantity.max)
+                    if (Object.keys(soldCondition).length > 0) {
+                        conditions.push({ soldQuantity: soldCondition })
                     }
                 } catch (error) {
                     console.error('Error parsing stockQuantity:', error)
                 }
             }
 
-            if (Object.keys(match).length > 0) {
-                pipeline.push({ $match: match })
+            if (conditions.length > 0) {
+                pipeline.push({
+                    $match: {
+                        $and: conditions,
+                    },
+                })
             }
-
-            // Stage 2: Lookup variants
-            pipeline.push({
-                $lookup: {
-                    from: 'product_variants',
-                    localField: 'variants',
-                    foreignField: '_id',
-                    as: 'variantsData',
-                },
-            })
 
             // Stage 3: Filter by color and size
             if (color || size) {
@@ -142,42 +144,21 @@ class ProductController {
                 pipeline.push({ $limit: Number(limit) })
             }
 
-            // Execute the aggregation
             let products = await Product.aggregate(pipeline)
-
-            // Get total count for pagination
-            if (search) {
-                const finalSearch = search
-                    .toLowerCase()
-                    .trim()
-                    .replace(/đ/g, 'd')
-                    .normalize('NFD')
-                    .replace(/[\u0300-\u036f]/g, '')
-                    .replace(/[^a-zA-Z0-9\s]/g, '')
-                    .replace(/\s+/g, '')
-                console.log(finalSearch)
-                products = products.filter(
-                    (item) =>
-                        item.name
-                            .toLowerCase()
-                            .trim()
-                            .replace(/đ/g, 'd')
-                            .normalize('NFD')
-                            .replace(/[\u0300-\u036f]/g, '')
-                            .replace(/[^a-zA-Z0-9\s]/g, '')
-                            .replace(/\s+/g, '')
-                            .includes(finalSearch) ||
-                        item.description
-                            .toLowerCase()
-                            .trim()
-                            .replace(/đ/g, 'd')
-                            .normalize('NFD')
-                            .replace(/[\u0300-\u036f]/g, '')
-                            .replace(/[^a-zA-Z0-9\s]/g, '')
-                            .replace(/\s+/g, '')
-                            .includes(finalSearch)
-                )
-            }
+            products = await Product.populate(products, [
+                {
+                    path: 'variants',
+                    model: 'product_variant',
+                },
+                {
+                    path: 'categories',
+                    model: 'category',
+                    populate: {
+                        path: 'parentCategory',
+                        model: 'category',
+                    },
+                },
+            ])
             const countPipeline = [...pipeline]
             if (Number(limit) < 1000000) {
                 countPipeline.pop() // Remove $limit
