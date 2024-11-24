@@ -469,7 +469,7 @@ class ProductController {
                 for (const file of files) {
                     const validationResult = validateFile(file, {
                         maxSize: 10 * 1024 * 1024, // 10MB
-                        allowedTypes: ['image/jpeg', 'image/png', 'image/gif', 'video/mp4'],
+                        allowedTypes: ['image/jpeg', 'image/png', 'image/gif', 'video/mp4', 'video/mkv'],
                     })
                     if (validationResult !== true) {
                         return res.status(400).json({ message: `Lỗi file ${file.originalname}: ${validationResult}` })
@@ -489,6 +489,8 @@ class ProductController {
                 comment: comment,
                 files: uploadedFiles,
                 createdAt: new Date().toISOString(),
+                reply: null,
+                likes: 0,
             }
 
             if (!ratingDoc.exists) {
