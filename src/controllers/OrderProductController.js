@@ -5,6 +5,8 @@ const Address = require('../models/AddressModel')
 const Voucher = require('../models/VoucherModel')
 const Cart = require('../models/CartModel')
 const User = require('../models/UserModel')
+const PromotionalCombo = require('../models/PromotionalComboModel')
+const { handleComboDiscountValue } = require('../util/OrderUtil')
 const mongoose = require('mongoose')
 const { admin } = require('../configs/FirebaseConfig')
 
@@ -146,6 +148,8 @@ class OrderProductController {
                 createdAt: new Date(),
                 expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
                 read: false,
+                type: 'order',
+                link: `/seller/orders`,
             }
             const batch = admin.firestore().batch()
             const notificationRef = admin.firestore().collection('notifications').doc('admin')
@@ -293,6 +297,8 @@ class OrderProductController {
                             createdAt: new Date(),
                             expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
                             read: false,
+                            type: 'order',
+                            link: `/user/account/orders/${updatedOrder._id}`,
                         })
                     }
                 }
@@ -316,7 +322,7 @@ class OrderProductController {
             next(error)
         }
     }
-    // [PUT] /order/update/:order_id Chưa hoàn thành
+    // [PUT] /order/update/:order_id **Chưa test**
     async updateOrder(req, res, next) {
         try {
             const orderId = req.params.order_id
@@ -330,13 +336,13 @@ class OrderProductController {
             // Bước 1: Tìm đơn hàng cần cập nhật
             const order = await OrderProduct.findById(orderId)
             if (!order) {
-                return res.status(404).json({ message: 'Order not found' })
+                return res.status(404).json({ message: 'Không tìm thấy đơn hàng' })
             }
 
             // Bước 2: Kiểm tra trạng thái đơn hàng có cho phép cập nhật
-            const allowedStatuses = ['Pending', 'Processing']
+            const allowedStatuses = ['pending']
             if (!allowedStatuses.includes(order.status)) {
-                return res.status(400).json({ message: `Cannot update order with status: ${order.status}` })
+                return res.status(400).json({ message: `Không thể cập nhật đơn hàng với trạng thái: ${order.status}` })
             }
 
             // Bước 3: Xử lý cập nhật địa chỉ giao hàng nếu có
@@ -344,13 +350,12 @@ class OrderProductController {
                 // Kiểm tra địa chỉ có tồn tại
                 const newAddress = await Address.findById(shippingAddress)
                 if (!newAddress) {
-                    return res.status(404).json({ message: 'Shipping address not found' })
+                    return res.status(404).json({ message: 'Địa chỉ giao hàng không tồn tại' })
                 }
                 order.shippingAddress = shippingAddress
             }
 
             // Bước 4: Xử lý cập nhật sản phẩm và số lượng
-            let productsPrice = 0
             if (products && Array.isArray(products)) {
                 // Tạo một bản đồ hiện tại của sản phẩm trong đơn hàng
                 const currentProductsMap = {}
@@ -375,25 +380,55 @@ class OrderProductController {
                     if (difference !== 0) {
                         const productVariant = await ProductVariant.findById(productId)
                         if (!productVariant) {
-                            return res.status(404).json({ message: `Product variant not found: ${productId}` })
+                            return res.status(404).json({ message: `Không tìm thấy phân loại sản phẩm ${productId}` })
                         }
 
                         if (difference > 0) {
                             // Tăng số lượng đặt hàng, kiểm tra tồn kho
                             if (productVariant.stockQuantity < difference) {
                                 return res.status(400).json({
-                                    message: `Not enough stock for product variant ${productVariant._id}. Available: ${productVariant.stockQuantity}, Requested additional: ${difference}`,
+                                    message: `Không đủ tồn kho cho phân loại sản phẩm ${productVariant._id}. Có sẵn: ${productVariant.stockQuantity}, Yêu cầu thêm: ${difference}`,
                                 })
                             }
                             productVariant.stockQuantity -= difference
+                            const product = await Product.findById(productVariant.product)
+                            product.stockQuantity -= difference
+                            await product.save()
                         } else {
                             // Giảm số lượng đặt hàng, tăng tồn kho
                             productVariant.stockQuantity += Math.abs(difference)
+                            const product = await Product.findById(productVariant.product)
+                            product.stockQuantity += Math.abs(difference)
+                            await product.save()
                         }
 
                         await productVariant.save()
-                        const productPrice = productVariant.product.originalPrice + (productVariant.additionalPrice || 0)
-                        productsPrice += productPrice * newQuantity
+                        // Tính lại giá sản phẩm
+                        const currentDate = new Date()
+                        const combo = await PromotionalCombo.findOne({
+                            products: { $in: [productVariant.product] },
+                            startDate: { $lte: currentDate },
+                            endDate: { $gte: currentDate },
+                            limitCombo: { $gt: 0 },
+                        })
+                        order.productsPrice =
+                            order.productsPrice +
+                            handleComboDiscountValue(
+                                {
+                                    variant: productVariant,
+                                    quantity: currentQuantity,
+                                },
+                                newQuantity,
+                                combo
+                            ) -
+                            handleComboDiscountValue(
+                                {
+                                    variant: productVariant,
+                                    quantity: currentQuantity,
+                                },
+                                currentQuantity,
+                                combo
+                            )
                     }
                 }
 
@@ -411,7 +446,7 @@ class OrderProductController {
 
                 for (const voucherItem of vouchers) {
                     const voucher = await Voucher.findOne({
-                        _id: voucherItem.voucher,
+                        _id: voucherItem,
                         isActive: true,
                         validFrom: { $lte: new Date() },
                         validUntil: { $gte: new Date() },
@@ -429,13 +464,13 @@ class OrderProductController {
                         }
 
                         // Kiểm tra giá trị đơn hàng tối thiểu
-                        if (productsPrice >= voucher.minOrderValue) {
+                        if (order.productsPrice >= voucher.minOrderValue) {
                             validVouchers.push(voucher)
 
                             // Tính giá trị giảm giá
                             let discount = 0
                             if (voucher.discountType === 'percentage') {
-                                discount = (productsPrice * voucher.discountValue) / 100
+                                discount = (order.productsPrice * voucher.discountValue) / 100
                             } else if (voucher.discountType === 'fixedamount') {
                                 discount = voucher.discountValue
                                 if (voucher.maxDiscountvalue && discount > voucher.maxDiscountvalue) {
@@ -448,12 +483,11 @@ class OrderProductController {
                     }
                 }
 
-                order.vouchers = validVouchers.map((voucher) => ({ voucher: voucher._id }))
+                order.vouchers = validVouchers
             }
 
             // Bước 6: Tính lại giá sản phẩm, giá vận chuyển và tổng giá
-            order.productsPrice = productsPrice
-            order.totalPrice = productsPrice + order.shippingPrice - voucherDiscount
+            order.totalPrice = order.productsPrice + order.shippingPrice - voucherDiscount
 
             // Bước 7: Lưu đơn hàng đã cập nhật
             const updatedOrder = await order.save()
@@ -470,10 +504,10 @@ class OrderProductController {
                 })
                 .populate('shippingAddress')
                 .populate('user')
-                .populate('vouchers.voucher')
+                .populate('vouchers')
 
             res.status(200).json({
-                message: 'Order updated successfully',
+                message: 'Đơn hàng đã cập nhật thành công',
                 order: populatedOrder,
             })
         } catch (e) {

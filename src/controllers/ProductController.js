@@ -9,7 +9,7 @@ class ProductController {
     // [GET] /product
     async getAllProduct(req, res, next) {
         try {
-            const { page = 1, limit = 12, category, priceRange, color, size, sort, stockQuantity, soldQuantity, search, rating, brand } = req.query
+            const { page = 1, limit = 1, category, priceRange, color, size, sort, stockQuantity, soldQuantity, search, rating, brand } = req.query
             const pipeline = []
 
             const conditions = []
