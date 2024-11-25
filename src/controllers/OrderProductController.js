@@ -514,6 +514,102 @@ class OrderProductController {
             next(e)
         }
     }
+    // [POST] /order/create-order-from-guest
+    async createOrderFromGuest(req, res, next) {
+        const session = await mongoose.startSession()
+        session.startTransaction()
+
+        try {
+            const { address, orderData } = req.body
+            for (const item of orderData.products) {
+                const productVariant = await ProductVariant.findById(item.product).session(session)
+                if (!productVariant) {
+                    await session.abortTransaction()
+                    return res.status(400).json({ message: `Không tìm thấy phân loại sản phẩm ${item.product}` })
+                }
+                if (productVariant.stockQuantity < item.quantity) {
+                    await session.abortTransaction()
+                    return res.status(400).json({
+                        message: `Sản phẩm không đủ số lượng trong kho. Còn lại: ${productVariant.stockQuantity}`,
+                    })
+                }
+
+                // Cập nhật số lượng tồn kho
+                productVariant.stockQuantity -= item.quantity
+                await productVariant.save({ session })
+
+                // Cập nhật số lượng tồn kho của sản phẩm chính
+                const product = await Product.findById(productVariant.product).session(session)
+                product.stockQuantity -= item.quantity
+                await product.save({ session })
+            }
+            const user = new User({
+                email: address.email,
+                name: address.name,
+                phone: address.phone,
+                clientType: 'potential',
+            })
+            await user.save({ session })
+            const newAddress = new Address({
+                name: address.name,
+                phone: address.phone,
+                location: address.location,
+                address: address.address,
+                user: user._id,
+                type: 'home',
+                default: true,
+            })
+            await newAddress.save({ session })
+            const newOrder = new OrderProduct({
+                products: orderData.products,
+                paymentMethod: orderData.paymentMethod,
+                productsPrice: orderData.productsPrice,
+                shippingPrice: orderData.shippingPrice,
+                totalPrice: orderData.totalPrice,
+                shippingAddress: newAddress._id,
+                user: user._id,
+                vouchers: orderData.vouchers || [],
+                expectedDeliveryDate: orderData.expectedDeliveryDate,
+                shippingMethod: orderData.shippingMethod,
+            })
+            const savedOrder = await newOrder.save({ session })
+
+            // Tạo thông báo cho admin
+            const notif = {
+                userId: savedOrder.user.toString(),
+                orderId: savedOrder._id.toString(),
+                message: `Bạn có một đơn hàng mới từ khách ${address.name}`,
+                createdAt: new Date(),
+                expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+                read: false,
+                type: 'order',
+                link: `/seller/orders`,
+            }
+
+            const batch = admin.firestore().batch()
+            const notificationRef = admin.firestore().collection('notifications').doc('admin')
+            batch.set(
+                notificationRef,
+                {
+                    notifications: admin.firestore.FieldValue.arrayUnion(notif),
+                },
+                { merge: true }
+            )
+            await batch.commit()
+
+            await session.commitTransaction()
+
+            res.status(201).json({
+                message: 'Đặt hàng thành công',
+                order: savedOrder,
+            })
+        } catch (e) {
+            await session.abortTransaction()
+            next(e)
+        } finally {
+            session.endSession()
+        }
+    }
 }
 
 module.exports = new OrderProductController()

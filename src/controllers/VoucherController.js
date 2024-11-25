@@ -27,6 +27,18 @@ class VoucherController {
         }
     }
 
+    //[GET] /voucher/get-by-code/:voucherCode
+    async getVoucherByCode(req, res, next) {
+        try {
+            const voucher = await Voucher.findOne({ code: req.params.voucherCode, validUntil: { $gte: new Date() }, validFrom: { $lte: new Date() } })
+            if (!voucher) {
+                return res.status(404).json({ message: 'Không tìm thấy voucher' })
+            }
+            res.json(voucher)
+        } catch (err) {
+            next(err)
+        }
+    }
     //[PUT] /voucher/edit/:voucherId
     async updateVoucher(req, res, next) {
         try {
