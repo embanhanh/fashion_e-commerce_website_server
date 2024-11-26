@@ -30,6 +30,12 @@ class UserController {
                 return res.status(400).json({ message: 'Tài khoản hoặc mật khẩu không chính xác, vui lòng thử lại' })
             }
 
+            if (user.isBlocked) {
+                return res.status(400).json({
+                    message: 'Tài khoản của bạn đã bị khóa. Vui lòng liên hệ chủ shop để biết thêm chi tiết',
+                })
+            }
+
             // Tạo token JWT
             const accessToken = await gennerateAccessToken({ data: user })
             const refreshToken = await gennerateRefreshToken({ data: user })
@@ -48,6 +54,11 @@ class UserController {
             const result = await verifyFirebaseToken(token)
             if (result.success) {
                 let user = await User.findOne({ id: result.user.uid })
+                if (user && user.isBlocked) {
+                    return res.status(400).json({
+                        message: 'Tài khoản của bạn đã bị khóa. Vui lòng liên hệ chủ shop để biết thêm chi tiết',
+                    })
+                }
                 if (!user) {
                     user = await User.create({
                         id: result.user.uid,
@@ -252,7 +263,7 @@ class UserController {
     async updateAddressUser(req, res, next) {
         try {
             const { _id: userId } = req.user.data
-            const { name, phone, location, type, default: isDefault } = req.body
+            const { name, phone, location, type, default: isDefault, address: newAddress } = req.body
             const id = req.params.id
 
             if (isDefault) {
@@ -267,10 +278,11 @@ class UserController {
                     location,
                     type,
                     default: isDefault,
+                    address: newAddress,
                 }
             )
             if (!address) {
-                return res.status(404).json({ message: 'No address founded.' })
+                return res.status(404).json({ message: 'Không tìm thấy địa chỉ' })
             }
             return res.status(200).json(address)
         } catch (err) {
@@ -327,8 +339,17 @@ class UserController {
     async getVoucherUser(req, res, next) {
         try {
             const { _id: userId } = req.user.data
-            const vouchers = await Voucher.find({ user: userId }).populate('applicableProducts')
-            return res.status(200).json(vouchers)
+            const user = await User.findOne({ _id: userId }).populate({
+                path: 'vouchers.voucher',
+                populate: {
+                    path: 'applicableProducts',
+                },
+            })
+            if (!user) {
+                return res.status(404).json({ message: 'Không tìm thấy người dùng' })
+            }
+
+            return res.status(200).json(user.vouchers)
         } catch (err) {
             next(err)
         }

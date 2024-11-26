@@ -9,6 +9,7 @@ const PromotionalCombo = require('../models/PromotionalComboModel')
 const { handleComboDiscountValue } = require('../util/OrderUtil')
 const mongoose = require('mongoose')
 const { admin } = require('../configs/FirebaseConfig')
+const { sendOrderEmailAsync } = require('../util/EmailUtil')
 
 class OrderProductController {
     // [GET] /order
@@ -179,6 +180,16 @@ class OrderProductController {
             session.endSession()
 
             res.status(201).json(savedOrder)
+            const populatedOrder = await OrderProduct.findById(savedOrder._id)
+                .populate('user')
+                .populate({
+                    path: 'products.product',
+                    populate: {
+                        path: 'product',
+                    },
+                })
+                .populate('shippingAddress')
+            sendOrderEmailAsync(populatedOrder, 'create')
         } catch (err) {
             // Rollback lại trong trường hợp có lỗi
             await session.abortTransaction()
@@ -223,6 +234,7 @@ class OrderProductController {
             const { orderIds, status } = req.body
             const userRole = req.user.data.role
             const notifications = []
+            const updatedOrders = []
 
             for (const orderId of orderIds) {
                 if (userRole !== 'admin' && status !== 'cancelled') {
@@ -246,6 +258,7 @@ class OrderProductController {
                     ).populate('products.product')
 
                     if (updatedOrder) {
+                        updatedOrders.push(updatedOrder)
                         if (status === 'cancelled') {
                             for (const product of updatedOrder.products) {
                                 const productVariant = await ProductVariant.findById(product.product._id)
@@ -318,6 +331,18 @@ class OrderProductController {
             await batch.commit()
 
             res.status(200).json({ orderIds, status })
+            for (const order of updatedOrders) {
+                const populatedOrder = await OrderProduct.findById(order._id)
+                    .populate('user')
+                    .populate({
+                        path: 'products.product',
+                        populate: {
+                            path: 'product',
+                        },
+                    })
+                    .populate('shippingAddress')
+                sendOrderEmailAsync(populatedOrder, 'status')
+            }
         } catch (error) {
             next(error)
         }
@@ -578,7 +603,7 @@ class OrderProductController {
             const notif = {
                 userId: savedOrder.user.toString(),
                 orderId: savedOrder._id.toString(),
-                message: `Bạn có một đơn hàng mới từ khách ${address.name}`,
+                message: `Bạn có một đơn hàng mới từ khách hàng ${address.name}`,
                 createdAt: new Date(),
                 expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
                 read: false,
@@ -599,10 +624,17 @@ class OrderProductController {
 
             await session.commitTransaction()
 
-            res.status(201).json({
-                message: 'Đặt hàng thành công',
-                order: savedOrder,
-            })
+            res.status(201).json(savedOrder)
+            const populatedOrder = await OrderProduct.findById(savedOrder._id)
+                .populate('user')
+                .populate({
+                    path: 'products.product',
+                    populate: {
+                        path: 'product',
+                    },
+                })
+                .populate('shippingAddress')
+            sendOrderEmailAsync(populatedOrder, 'create')
         } catch (e) {
             await session.abortTransaction()
             next(e)
