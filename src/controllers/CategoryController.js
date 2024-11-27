@@ -55,7 +55,7 @@ class CategoryController {
                 }
             }
 
-            let newCategory
+            let newCategory = null
             if (childCategory) {
                 const existingCategory = await Category.findOne({ name: childCategory, parentCategory: parent._id })
                 if (existingCategory) {
