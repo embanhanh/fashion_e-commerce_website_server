@@ -490,7 +490,7 @@ class ProductController {
                 files: uploadedFiles,
                 createdAt: new Date().toISOString(),
                 reply: null,
-                likes: 0,
+                likes: [],
             }
 
             if (!ratingDoc.exists) {
