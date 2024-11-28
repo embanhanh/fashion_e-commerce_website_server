@@ -159,7 +159,7 @@ class UserController {
     async getOrderDetail(req, res, next) {
         try {
             const user = req.user
-            const idUser = user._id
+            const idUser = user.data._id
             const id = req.params.id
             const order = await OrderProduct.findOne({ user: idUser, _id: id })
                 .populate({
@@ -170,7 +170,7 @@ class UserController {
                 })
                 .populate('shippingAddress')
                 .populate('user')
-                .populate('vouchers.voucher')
+                .populate('vouchers')
             return res.status(200).json(order)
         } catch (err) {
             next(err)
