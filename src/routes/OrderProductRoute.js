@@ -7,6 +7,7 @@ router.post('/create', authenticateToken, orderProductController.createOrder)
 router.post('/create-from-guest', orderProductController.createOrderFromGuest)
 router.get('/', authenticateToken, orderProductController.getAllOrder)
 router.put('/update-status-many', authenticateToken, orderProductController.updateOrderStatusMany)
+router.get('/:user_id', authenticateToken, orderProductController.getOrdersByUserId)
 router.get('/:order_id', authenticateToken, orderProductController.getOrderById)
 
 module.exports = router

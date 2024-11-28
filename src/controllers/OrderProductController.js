@@ -642,6 +642,21 @@ class OrderProductController {
             session.endSession()
         }
     }
+    // [GET] /order/:user_id
+    async getOrdersByUserId(req, res, next) {
+        const { user_id } = req.params
+        const orders = await OrderProduct.find({ user: user_id })
+            .populate('user')
+            .populate({
+                path: 'products.product',
+                populate: {
+                    path: 'product',
+                },
+            })
+            .populate('shippingAddress')
+            .populate('vouchers')
+        res.status(200).json(orders)
+    }
 }
 
 module.exports = new OrderProductController()
