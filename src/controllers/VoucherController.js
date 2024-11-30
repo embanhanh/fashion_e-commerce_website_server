@@ -117,6 +117,7 @@ class VoucherController {
                 createdAt: new Date(),
                 expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
                 read: false,
+                link: `/user/account/vouchers`,
             })
             const batch = admin.firestore().batch()
             for (const notification of notifications) {

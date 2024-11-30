@@ -1,6 +1,7 @@
 const Product = require('../models/ProductModel')
 const ProductVariant = require('../models/ProductVariantModel')
 const OrderProduct = require('../models/OrderProductModel')
+const User = require('../models/UserModel')
 const mongoose = require('mongoose')
 const { bucket, admin } = require('../configs/FirebaseConfig')
 const { validateFile, uploadFilesToFirebase } = require('../util/FirebaseUtil')
@@ -455,28 +456,28 @@ class ProductController {
                 return res.status(404).json({ message: 'Không tìm thấy sản phẩm' })
             }
             //Tìm kiếm đơn hàng có sản phẩm và gần nhất
-            // const order = await OrderProduct.findOne({
-            //     'products.product': product_id,
-            //     user: userId,
-            //     status: 'delivered',
-            // }).sort({ deliveredAt: -1 })
+            const order = await OrderProduct.findOne({
+                'products.product': product_id,
+                user: userId,
+                status: 'delivered',
+            }).sort({ deliveredAt: -1 })
 
-            // if (!order) {
-            //     return res.status(404).json({
-            //         message: 'Không tìm thấy đơn hàng đã giao thành công cho sản phẩm này',
-            //     })
-            // }
+            if (!order) {
+                return res.status(404).json({
+                    message: 'Không tìm thấy đơn hàng đã giao thành công cho sản phẩm này',
+                })
+            }
 
-            // // Kiểm tra thời gian đánh giá (trong vòng 7 ngày sau khi giao hàng)
-            // const SEVEN_DAYS_IN_MS = 7 * 24 * 60 * 60 * 1000 // 7 ngày tính bằng milliseconds
-            // const deliveredDate = new Date(order.deliveredAt).getTime()
-            // const currentDate = new Date().getTime()
+            // Kiểm tra thời gian đánh giá (trong vòng 7 ngày sau khi giao hàng)
+            const SEVEN_DAYS_IN_MS = 7 * 24 * 60 * 60 * 1000 // 7 ngày tính bằng milliseconds
+            const deliveredDate = new Date(order.deliveredAt).getTime()
+            const currentDate = new Date().getTime()
 
-            // if (currentDate - deliveredDate > SEVEN_DAYS_IN_MS) {
-            //     return res.status(403).json({
-            //         message: 'Bạn đã quá thời hạn đánh giá sản phẩm (7 ngày sau khi nhận hàng)',
-            //     })
-            // }
+            if (currentDate - deliveredDate > SEVEN_DAYS_IN_MS) {
+                return res.status(403).json({
+                    message: 'Bạn đã quá thời hạn đánh giá sản phẩm (7 ngày sau khi nhận hàng)',
+                })
+            }
 
             const ratingRef = admin.firestore().collection('product_ratings').doc(product_id)
 
@@ -527,6 +528,31 @@ class ProductController {
                 await ratingRef.update({ ratings: admin.firestore.FieldValue.arrayUnion(newRating) })
             }
             res.status(200).json({ message: 'Đánh giá sản phẩm thành công' })
+        } catch (err) {
+            next(err)
+        }
+    }
+
+    //[POST] /product/like/:product_id
+    async likeProduct(req, res, next) {
+        const { product_id } = req.params
+        const { _id: userId } = req.user.data
+        try {
+            const product = await Product.findById(product_id)
+            if (!product) {
+                return res.status(404).json({ message: 'Không tìm thấy sản phẩm' })
+            }
+            const user = await User.findById(userId)
+            if (!user) {
+                return res.status(404).json({ message: 'Không tìm thấy người dùng' })
+            }
+            if (user.favoriteProducts.includes(product_id)) {
+                user.favoriteProducts = user.favoriteProducts.filter((id) => id.toString() !== product_id)
+            } else {
+                user.favoriteProducts.push(product_id)
+            }
+            await user.save()
+            res.status(200).json(user.favoriteProducts)
         } catch (err) {
             next(err)
         }

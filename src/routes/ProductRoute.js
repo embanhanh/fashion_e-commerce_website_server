@@ -4,6 +4,7 @@ const { authenticateToken, authorizeRole } = require('../middlewares/AuthMiddlew
 const upload = require('../middlewares/uploadMiddleware')
 const productController = require('../controllers/ProductController')
 
+router.post('/like/:product_id', authenticateToken, productController.likeProduct)
 router.put('/edit/:product_name', authenticateToken, authorizeRole(['admin']), productController.updateProduct)
 router.post('/create', authenticateToken, authorizeRole(['admin']), productController.createProduct)
 router.get('/:product_name', productController.getProductBySlug)

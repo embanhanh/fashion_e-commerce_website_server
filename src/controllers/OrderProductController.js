@@ -237,7 +237,7 @@ class OrderProductController {
             const updatedOrders = []
 
             for (const orderId of orderIds) {
-                if (userRole !== 'admin' && status !== 'cancelled') {
+                if (userRole !== 'admin' && status !== 'cancelled' && status !== 'delivered') {
                     return res.status(403).json({ message: 'Bạn không có đủ quyền cập nhật trạng thái đơn hàng' })
                 }
                 const findOrder = await OrderProduct.findById(orderId).populate('products.product')
@@ -247,6 +247,11 @@ class OrderProductController {
 
                 if (userRole !== 'admin' && status === 'cancelled') {
                     if (findOrder.status !== 'pending' && findOrder.status !== 'processing') {
+                        continue
+                    }
+                }
+                if (userRole !== 'admin' && status === 'delivered') {
+                    if (findOrder.status !== 'delivering') {
                         continue
                     }
                 }
@@ -269,11 +274,9 @@ class OrderProductController {
                                 await productInStock.save()
                             }
                         }
-                        if (status === 'delivering') {
+                        if (status === 'delivered') {
                             updatedOrder.deliveredAt = new Date()
                             await updatedOrder.save()
-                        }
-                        if (status === 'delivered') {
                             const order = await OrderProduct.find({ user: updatedOrder.user })
                             if (order.length >= 10 && order.length <= 50) {
                                 const user = await User.findById(updatedOrder.user)
