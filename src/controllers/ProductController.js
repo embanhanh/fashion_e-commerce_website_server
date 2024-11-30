@@ -11,6 +11,7 @@ class ProductController {
         try {
             const { page = 1, limit = 1, category, priceRange, color, size, sort, stockQuantity, soldQuantity, search, rating, brand } = req.query
             const pipeline = []
+            console.log(color)
 
             const conditions = []
             if (search) {
@@ -83,14 +84,41 @@ class ProductController {
                 })
             }
 
+            pipeline.push({
+                $lookup: {
+                    from: 'product_variants',
+                    localField: 'variants',
+                    foreignField: '_id',
+                    as: 'variants',
+                },
+            })
+
             // Stage 3: Filter by color and size
-            if (color || size) {
+            if (color?.length || size?.length) {
                 pipeline.push({
                     $match: {
-                        variantsData: {
+                        variants: {
                             $elemMatch: {
-                                ...(color && { color: { $in: color.map((c) => new RegExp(c, 'i')) } }),
-                                ...(size && { size: { $in: size } }),
+                                $or: [
+                                    ...(color?.length
+                                        ? [
+                                              {
+                                                  color: {
+                                                      $in: color.map((c) => new RegExp(c, 'i')),
+                                                  },
+                                              },
+                                          ]
+                                        : []),
+                                    ...(size?.length
+                                        ? [
+                                              {
+                                                  size: {
+                                                      $in: size,
+                                                  },
+                                              },
+                                          ]
+                                        : []),
+                                ],
                             },
                         },
                     },
