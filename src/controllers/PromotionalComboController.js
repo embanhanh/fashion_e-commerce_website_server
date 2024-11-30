@@ -55,6 +55,21 @@ class PromotionalComboController {
             next(err)
         }
     }
+    // [GET] /promotional-combos/get-by-product/:productId
+    async getPromotionalComboByProductId(req, res, next) {
+        try {
+            const currentDate = new Date()
+            const promotionalCombo = await PromotionalCombo.findOne({
+                products: { $in: [req.params.productId] },
+                startDate: { $lte: currentDate },
+                endDate: { $gte: currentDate },
+                limitCombo: { $gt: 0 },
+            })
+            res.json(promotionalCombo)
+        } catch (err) {
+            next(err)
+        }
+    }
 }
 
 module.exports = new PromotionalComboController()

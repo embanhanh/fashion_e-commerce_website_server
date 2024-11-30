@@ -7,41 +7,51 @@ class WebhookController {
             const { sessionInfo } = req.body
             const { parameters } = sessionInfo
             let conditions = { isActive: true }
+            if (!conditions.$and) {
+                conditions.$and = []
+            }
             if (parameters.category && parameters.category.length > 0) {
                 const categoryRegex = parameters.category.map((cat) => new RegExp(cat.trim(), 'i'))
                 const categories = await Category.find({
                     name: { $in: categoryRegex },
                 })
-                if (categories.length > 0) {
-                    conditions.categories = {
-                        $in: categories.map((cat) => cat._id),
-                    }
+                const categoryCondition = {
+                    $or: [],
                 }
+                if (categories.length > 0) {
+                    categoryCondition.$or.push({
+                        categories: { $in: categories.map((cat) => cat._id) },
+                    })
+                }
+                categoryCondition.$or.push({ name: { $in: categoryRegex } })
+                categoryCondition.$or.push({ description: { $in: categoryRegex } })
+                conditions.$and.push(categoryCondition)
             }
 
             if (parameters.pricerange && parameters.pricerange.length > 0) {
                 const priceRanges = parameters.pricerange.map((range) => range.toLowerCase())
-                let priceConditions = []
+                let priceConditions = {}
 
                 if (priceRanges.some((range) => range.includes('thấp'))) {
-                    priceConditions.push({ originalPrice: { $lt: 500000 } })
+                    priceConditions = { originalPrice: { $lt: 500000 } }
                 }
                 if (priceRanges.some((range) => range.includes('trung'))) {
-                    priceConditions.push({
+                    priceConditions = {
                         originalPrice: {
                             $gte: 500000,
                             $lte: 2000000,
                         },
-                    })
+                    }
                 }
                 if (priceRanges.some((range) => range.includes('cao'))) {
-                    priceConditions.push({ originalPrice: { $gt: 2000000 } })
+                    priceConditions = { originalPrice: { $gt: 2000000 } }
                 }
 
-                if (priceConditions.length > 0) {
-                    conditions.$or = priceConditions
+                if (Object.keys(priceConditions).length > 0) {
+                    conditions.$and.push(priceConditions)
                 }
             }
+            console.log(conditions)
 
             let products = await Product.find(conditions).populate('variants').populate('categories')
 

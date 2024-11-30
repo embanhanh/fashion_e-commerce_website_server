@@ -1,4 +1,5 @@
 const Category = require('../models/CategoryModel')
+const { validateFile, uploadFilesToFirebase, deleteFilesFromFirebase } = require('../util/FirebaseUtil')
 
 class CategoryController {
     // [GET] /category
@@ -15,29 +16,61 @@ class CategoryController {
     async createCategory(req, res, next) {
         try {
             const { parentCategory, childCategory } = req.body
+            const urlImage = req.file || req.body.urlImage
 
-            if (!childCategory) {
-                return res.status(400).json({ message: 'Danh mục con là bắt buộc' })
+            if (!parentCategory) {
+                return res.status(400).json({ message: 'Danh mục lớn là bắt buộc' })
+            }
+
+            let imageUrl = ''
+            if (urlImage) {
+                if (req.file) {
+                    // Nếu là file, upload lên Firebase
+                    const validation = validateFile(req.file)
+                    if (validation !== true) {
+                        return res.status(400).json({ message: validation })
+                    }
+                    const [uploadedFile] = await uploadFilesToFirebase([req.file], 'categories')
+                    imageUrl = uploadedFile.url
+                } else {
+                    imageUrl = urlImage
+                }
             }
 
             let parent
             if (parentCategory) {
                 parent = await Category.findOne({ name: parentCategory, parentCategory: null })
                 if (!parent) {
-                    parent = new Category({ name: parentCategory })
+                    parent = new Category({ name: parentCategory, urlImage: imageUrl })
                     await parent.save()
+                } else {
+                    if (imageUrl && parent.urlImage !== imageUrl) {
+                        if (parent.urlImage && parent.urlImage.includes('firebase')) {
+                            const oldFileName = parent.urlImage.split('/').pop().split('?')[0]
+                            await deleteFilesFromFirebase([`categories/${oldFileName}`])
+                        }
+                        parent.urlImage = imageUrl
+                        await parent.save()
+                    }
                 }
             }
 
-            const newCategory = new Category({
-                name: childCategory,
-                parentCategory: parent ? parent._id : null,
-            })
-            const savedCategory = await (await newCategory.save()).populate('parentCategory')
+            let newCategory = null
+            if (childCategory) {
+                const existingCategory = await Category.findOne({ name: childCategory, parentCategory: parent._id })
+                if (existingCategory) {
+                    return res.status(400).json({ message: 'Danh mục con đã tồn tại' })
+                }
+                newCategory = new Category({
+                    name: childCategory,
+                    parentCategory: parent._id,
+                })
+                newCategory = await (await newCategory.save()).populate('parentCategory')
+            }
 
             res.status(201).json({
-                message: 'Danh mục đã được tạo thành công',
-                category: savedCategory,
+                parentCategory: parent,
+                childCategory: newCategory,
             })
         } catch (err) {
             next(err)

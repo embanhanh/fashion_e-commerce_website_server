@@ -12,14 +12,14 @@ const webhookRouter = require('./WebhookRoute')
 function route(app) {
     app.use('/user', userRouter)
     app.use('/product', productRouter)
-    app.use('/order', authenticateToken, orderRouter)
+    app.use('/order', orderRouter)
     app.use('/category', categoryRouter)
     app.use('/cart', authenticateToken, cartRouter)
     app.use('/shop', shopRouter)
     app.use('/banner', bannerRouter)
     app.use('/voucher', voucherRouter)
     app.use('/promotional-combo', promotionalComboRouter)
-    app.use('/webhook', authenticateToken, webhookRouter)
+    app.use('/webhook', webhookRouter)
 }
 
 module.exports = route

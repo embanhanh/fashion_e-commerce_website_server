@@ -7,7 +7,7 @@ const Schema = mongoose.Schema
 
 const User = new Schema(
     {
-        email: { type: String, required: true, unique: true },
+        email: { type: String, required: true },
         password: { type: String, default: '' },
         name: { type: String, default: '' },
         gender: { type: String, default: '' },
@@ -25,6 +25,7 @@ const User = new Schema(
             },
         ],
         blockReasons: [{ type: String }],
+        favoriteProducts: [{ type: Schema.Types.ObjectId, ref: 'product_variants' }],
     },
     { timestamps: true }
 )

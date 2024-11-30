@@ -4,6 +4,7 @@ const voucherController = require('../controllers/VoucherController')
 const { authenticateToken, authorizeRole } = require('../middlewares/AuthMiddleware')
 
 router.get('/get/:voucherId', voucherController.getVoucherById)
+router.get('/get-by-code/:voucherCode', voucherController.getVoucherByCode)
 router.post('/create', authenticateToken, authorizeRole(['admin']), voucherController.createVoucher)
 router.put('/edit/:voucherId', authenticateToken, authorizeRole(['admin']), voucherController.updateVoucher)
 router.delete('/remove/:voucherId', authenticateToken, authorizeRole(['admin']), voucherController.deleteVoucher)

@@ -1,6 +1,7 @@
 const Product = require('../models/ProductModel')
 const ProductVariant = require('../models/ProductVariantModel')
 const OrderProduct = require('../models/OrderProductModel')
+const User = require('../models/UserModel')
 const mongoose = require('mongoose')
 const { bucket, admin } = require('../configs/FirebaseConfig')
 const { validateFile, uploadFilesToFirebase } = require('../util/FirebaseUtil')
@@ -9,35 +10,42 @@ class ProductController {
     // [GET] /product
     async getAllProduct(req, res, next) {
         try {
-            const { page = 1, limit = 12, category, priceRange, color, size, sort, stockQuantity, soldQuantity, search } = req.query
+            const { page = 1, limit = 1, category, priceRange, color, size, sort, stockQuantity, soldQuantity, search, rating, brand } = req.query
             const pipeline = []
+            console.log(color)
 
-            // Stage 1: Match products based on category and price
-            const match = {}
+            const conditions = []
             if (search) {
-                match.name = { $regex: search, $options: 'i' }
+                const searchRegex = new RegExp(search, 'i')
+                conditions.push({
+                    $or: [{ name: searchRegex }, { description: searchRegex }, { brand: searchRegex }, { material: searchRegex }],
+                })
             }
+
             if (category && category.length > 0) {
-                match.categories = {
-                    $in: category
-                        .map((id) => {
-                            try {
-                                return new mongoose.Types.ObjectId(id)
-                            } catch (error) {
-                                console.error(`Invalid ObjectId: ${id}`)
-                                return null
-                            }
-                        })
-                        .filter((id) => id !== null),
-                }
+                conditions.push({
+                    categories: {
+                        $in: category
+                            .map((id) => {
+                                try {
+                                    return new mongoose.Types.ObjectId(id)
+                                } catch (error) {
+                                    console.error(`Invalid ObjectId: ${id}`)
+                                    return null
+                                }
+                            })
+                            .filter((id) => id !== null),
+                    },
+                })
             }
+
             if (priceRange) {
                 try {
-                    const { min, max } = priceRange
-                    if (min || max) {
-                        match.originalPrice = {}
-                        if (min) match.originalPrice.$gte = Number(min)
-                        if (max) match.originalPrice.$lte = Number(max)
+                    const priceCondition = {}
+                    if (priceRange.min) priceCondition.$gte = Number(priceRange.min)
+                    if (priceRange.max) priceCondition.$lte = Number(priceRange.max)
+                    if (Object.keys(priceCondition).length > 0) {
+                        conditions.push({ originalPrice: priceCondition })
                     }
                 } catch (error) {
                     console.error('Error parsing priceRange:', error)
@@ -45,11 +53,11 @@ class ProductController {
             }
             if (stockQuantity) {
                 try {
-                    const { min, max } = stockQuantity
-                    if (min || max) {
-                        match.stockQuantity = {}
-                        if (min) match.stockQuantity.$gte = Number(min)
-                        if (max) match.stockQuantity.$lte = Number(max)
+                    const stockCondition = {}
+                    if (stockQuantity.min) stockCondition.$gte = Number(stockQuantity.min)
+                    if (stockQuantity.max) stockCondition.$lte = Number(stockQuantity.max)
+                    if (Object.keys(stockCondition).length > 0) {
+                        conditions.push({ stockQuantity: stockCondition })
                     }
                 } catch (error) {
                     console.error('Error parsing stockQuantity:', error)
@@ -58,40 +66,60 @@ class ProductController {
 
             if (soldQuantity) {
                 try {
-                    const { min, max } = soldQuantity
-                    if (min || max) {
-                        match.soldQuantity = {}
-                        if (min) match.soldQuantity.$gte = Number(min)
-
-                        if (max) match.soldQuantity.$lte = Number(max)
+                    const soldCondition = {}
+                    if (soldQuantity.min) soldCondition.$gte = Number(soldQuantity.min)
+                    if (soldQuantity.max) soldCondition.$lte = Number(soldQuantity.max)
+                    if (Object.keys(soldCondition).length > 0) {
+                        conditions.push({ soldQuantity: soldCondition })
                     }
                 } catch (error) {
                     console.error('Error parsing stockQuantity:', error)
                 }
             }
 
-            if (Object.keys(match).length > 0) {
-                pipeline.push({ $match: match })
+            if (conditions.length > 0) {
+                pipeline.push({
+                    $match: {
+                        $and: conditions,
+                    },
+                })
             }
 
-            // Stage 2: Lookup variants
             pipeline.push({
                 $lookup: {
                     from: 'product_variants',
                     localField: 'variants',
                     foreignField: '_id',
-                    as: 'variantsData',
+                    as: 'variants',
                 },
             })
 
             // Stage 3: Filter by color and size
-            if (color || size) {
+            if (color?.length || size?.length) {
                 pipeline.push({
                     $match: {
-                        variantsData: {
+                        variants: {
                             $elemMatch: {
-                                ...(color && { color: { $in: color.map((c) => new RegExp(c, 'i')) } }),
-                                ...(size && { size: { $in: size } }),
+                                $or: [
+                                    ...(color?.length
+                                        ? [
+                                              {
+                                                  color: {
+                                                      $in: color.map((c) => new RegExp(c, 'i')),
+                                                  },
+                                              },
+                                          ]
+                                        : []),
+                                    ...(size?.length
+                                        ? [
+                                              {
+                                                  size: {
+                                                      $in: size,
+                                                  },
+                                              },
+                                          ]
+                                        : []),
+                                ],
                             },
                         },
                     },
@@ -132,16 +160,34 @@ class ProductController {
                 pipeline.push(sortStage)
             }
 
+            if (rating) {
+                pipeline.push({ $match: { rating: { $gte: Number(rating) } } })
+            }
+            if (brand) {
+                pipeline.push({ $match: { brand: { $regex: brand, $options: 'i' } } })
+            }
+
             // Stage 5: Pagination
             if (Number(limit) < 1000000) {
                 pipeline.push({ $skip: (Number(page) - 1) * Number(limit) })
                 pipeline.push({ $limit: Number(limit) })
             }
 
-            // Execute the aggregation
-            const products = await Product.aggregate(pipeline)
-
-            // Get total count for pagination
+            let products = await Product.aggregate(pipeline)
+            products = await Product.populate(products, [
+                {
+                    path: 'variants',
+                    model: 'product_variant',
+                },
+                {
+                    path: 'categories',
+                    model: 'category',
+                    populate: {
+                        path: 'parentCategory',
+                        model: 'category',
+                    },
+                },
+            ])
             const countPipeline = [...pipeline]
             if (Number(limit) < 1000000) {
                 countPipeline.pop() // Remove $limit
@@ -410,28 +456,28 @@ class ProductController {
                 return res.status(404).json({ message: 'Không tìm thấy sản phẩm' })
             }
             //Tìm kiếm đơn hàng có sản phẩm và gần nhất
-            // const order = await OrderProduct.findOne({
-            //     'products.product': product_id,
-            //     user: userId,
-            //     status: 'delivered',
-            // }).sort({ deliveredAt: -1 })
+            const order = await OrderProduct.findOne({
+                'products.product': product_id,
+                user: userId,
+                status: 'delivered',
+            }).sort({ deliveredAt: -1 })
 
-            // if (!order) {
-            //     return res.status(404).json({
-            //         message: 'Không tìm thấy đơn hàng đã giao thành công cho sản phẩm này',
-            //     })
-            // }
+            if (!order) {
+                return res.status(404).json({
+                    message: 'Không tìm thấy đơn hàng đã giao thành công cho sản phẩm này',
+                })
+            }
 
-            // // Kiểm tra thời gian đánh giá (trong vòng 7 ngày sau khi giao hàng)
-            // const SEVEN_DAYS_IN_MS = 7 * 24 * 60 * 60 * 1000 // 7 ngày tính bằng milliseconds
-            // const deliveredDate = new Date(order.deliveredAt).getTime()
-            // const currentDate = new Date().getTime()
+            // Kiểm tra thời gian đánh giá (trong vòng 7 ngày sau khi giao hàng)
+            const SEVEN_DAYS_IN_MS = 7 * 24 * 60 * 60 * 1000 // 7 ngày tính bằng milliseconds
+            const deliveredDate = new Date(order.deliveredAt).getTime()
+            const currentDate = new Date().getTime()
 
-            // if (currentDate - deliveredDate > SEVEN_DAYS_IN_MS) {
-            //     return res.status(403).json({
-            //         message: 'Bạn đã quá thời hạn đánh giá sản phẩm (7 ngày sau khi nhận hàng)',
-            //     })
-            // }
+            if (currentDate - deliveredDate > SEVEN_DAYS_IN_MS) {
+                return res.status(403).json({
+                    message: 'Bạn đã quá thời hạn đánh giá sản phẩm (7 ngày sau khi nhận hàng)',
+                })
+            }
 
             const ratingRef = admin.firestore().collection('product_ratings').doc(product_id)
 
@@ -452,7 +498,7 @@ class ProductController {
                 for (const file of files) {
                     const validationResult = validateFile(file, {
                         maxSize: 10 * 1024 * 1024, // 10MB
-                        allowedTypes: ['image/jpeg', 'image/png', 'image/gif', 'video/mp4'],
+                        allowedTypes: ['image/jpeg', 'image/png', 'image/gif', 'video/mp4', 'video/mkv'],
                     })
                     if (validationResult !== true) {
                         return res.status(400).json({ message: `Lỗi file ${file.originalname}: ${validationResult}` })
@@ -472,6 +518,8 @@ class ProductController {
                 comment: comment,
                 files: uploadedFiles,
                 createdAt: new Date().toISOString(),
+                reply: null,
+                likes: [],
             }
 
             if (!ratingDoc.exists) {
@@ -480,6 +528,31 @@ class ProductController {
                 await ratingRef.update({ ratings: admin.firestore.FieldValue.arrayUnion(newRating) })
             }
             res.status(200).json({ message: 'Đánh giá sản phẩm thành công' })
+        } catch (err) {
+            next(err)
+        }
+    }
+
+    //[POST] /product/like/:product_id
+    async likeProduct(req, res, next) {
+        const { product_id } = req.params
+        const { _id: userId } = req.user.data
+        try {
+            const product = await Product.findById(product_id)
+            if (!product) {
+                return res.status(404).json({ message: 'Không tìm thấy sản phẩm' })
+            }
+            const user = await User.findById(userId)
+            if (!user) {
+                return res.status(404).json({ message: 'Không tìm thấy người dùng' })
+            }
+            if (user.favoriteProducts.includes(product_id)) {
+                user.favoriteProducts = user.favoriteProducts.filter((id) => id.toString() !== product_id)
+            } else {
+                user.favoriteProducts.push(product_id)
+            }
+            await user.save()
+            res.status(200).json(user.favoriteProducts)
         } catch (err) {
             next(err)
         }
