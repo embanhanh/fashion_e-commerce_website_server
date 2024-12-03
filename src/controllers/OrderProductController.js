@@ -189,7 +189,8 @@ class OrderProductController {
                     },
                 })
                 .populate('shippingAddress')
-            sendOrderEmailAsync(populatedOrder, 'create')
+            // Send email
+            // sendOrderEmailAsync(populatedOrder, 'create')
         } catch (err) {
             // Rollback lại trong trường hợp có lỗi
             await session.abortTransaction()
@@ -334,18 +335,19 @@ class OrderProductController {
             await batch.commit()
 
             res.status(200).json({ orderIds, status })
-            for (const order of updatedOrders) {
-                const populatedOrder = await OrderProduct.findById(order._id)
-                    .populate('user')
-                    .populate({
-                        path: 'products.product',
-                        populate: {
-                            path: 'product',
-                        },
-                    })
-                    .populate('shippingAddress')
-                sendOrderEmailAsync(populatedOrder, 'status')
-            }
+            // Send email
+            // for (const order of updatedOrders) {
+            //     const populatedOrder = await OrderProduct.findById(order._id)
+            //         .populate('user')
+            //         .populate({
+            //             path: 'products.product',
+            //             populate: {
+            //                 path: 'product',
+            //             },
+            //         })
+            //         .populate('shippingAddress')
+            //     sendOrderEmailAsync(populatedOrder, 'status')
+            // }
         } catch (error) {
             next(error)
         }
@@ -628,16 +630,17 @@ class OrderProductController {
             await session.commitTransaction()
 
             res.status(201).json(savedOrder)
-            const populatedOrder = await OrderProduct.findById(savedOrder._id)
-                .populate('user')
-                .populate({
-                    path: 'products.product',
-                    populate: {
-                        path: 'product',
-                    },
-                })
-                .populate('shippingAddress')
-            sendOrderEmailAsync(populatedOrder, 'create')
+            // Send email
+            // const populatedOrder = await OrderProduct.findById(savedOrder._id)
+            //     .populate('user')
+            //     .populate({
+            //         path: 'products.product',
+            //         populate: {
+            //             path: 'product',
+            //         },
+            //     })
+            //     .populate('shippingAddress')
+            // sendOrderEmailAsync(populatedOrder, 'create')
         } catch (e) {
             await session.abortTransaction()
             next(e)

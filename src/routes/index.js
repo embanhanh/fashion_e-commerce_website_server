@@ -9,6 +9,7 @@ const bannerRouter = require('./BannerRoute')
 const voucherRouter = require('./VoucherRoute')
 const promotionalComboRouter = require('./PromotionalComboRoute')
 const webhookRouter = require('./WebhookRoute')
+const momoRouter = require('./MomoRoute')
 function route(app) {
     app.use('/user', userRouter)
     app.use('/product', productRouter)
@@ -20,6 +21,7 @@ function route(app) {
     app.use('/voucher', voucherRouter)
     app.use('/promotional-combo', promotionalComboRouter)
     app.use('/webhook', webhookRouter)
+    app.use('/momo', momoRouter)
 }
 
 module.exports = route
