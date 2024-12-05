@@ -50,6 +50,7 @@ class OrderProductController {
                 .populate('vouchers.voucher')
                 .populate('shippingAddress')
                 .populate('user')
+                .sort({ createdAt: -1 })
 
             if (productName && productName.trim()) {
                 orderProducts = orderProducts.filter((order) =>
@@ -102,6 +103,7 @@ class OrderProductController {
                 vouchers,
                 expectedDeliveryDate,
                 shippingMethod,
+                transferOption,
             } = req.body
 
             // Kiểm tra và cập nhật số lượng tồn kho
@@ -137,6 +139,7 @@ class OrderProductController {
                 vouchers,
                 expectedDeliveryDate,
                 shippingMethod,
+                transferOption,
             })
 
             // Lưu đơn hàng
@@ -279,11 +282,11 @@ class OrderProductController {
                             updatedOrder.deliveredAt = new Date()
                             await updatedOrder.save()
                             const order = await OrderProduct.find({ user: updatedOrder.user })
-                            if (order.length >= 10 && order.length <= 50) {
-                                const user = await User.findById(updatedOrder.user)
-                                user.clientType = 'potential'
-                                await user.save()
-                            }
+                            // if (order.length >= 10 && order.length <= 50) {
+                            //     const user = await User.findById(updatedOrder.user)
+                            //     user.clientType = 'potential'
+                            //     await user.save()
+                            // }
                             if (order.length > 50) {
                                 const user = await User.findById(updatedOrder.user)
                                 user.clientType = 'loyal'
@@ -601,6 +604,7 @@ class OrderProductController {
                 vouchers: orderData.vouchers || [],
                 expectedDeliveryDate: orderData.expectedDeliveryDate,
                 shippingMethod: orderData.shippingMethod,
+                transferOption: orderData.transferOption,
             })
             const savedOrder = await newOrder.save({ session })
 
