@@ -555,6 +555,38 @@ class UserController {
             next(err)
         }
     }
+    // [GET] /account/favorite-products
+    async getFavoriteProducts(req, res, next) {
+        try {
+            const { _id: userId } = req.user.data
+            const user = await User.findOne({ _id: userId })
+                .populate({
+                    path: 'favoriteProducts',
+                    model: 'product_variant',
+                    populate: {
+                        path: 'product',
+                        model: 'products',
+                        populate: {
+                            path: 'categories',
+                        },
+                    },
+                })
+
+            if (!user) {
+                return res.status(404).json({ message: 'Không tìm thấy người dùng' })
+            }
+
+            if (!user.favoriteProducts || user.favoriteProducts.length === 0) {
+                return res.status(200).json([])
+            }
+
+            console.log('user.favoriteProducts', user.favoriteProducts)
+            return res.status(200).json(user.favoriteProducts)
+        } catch (err) {
+            console.error('Error in getFavoriteProducts:', err)
+            next(err)
+        }
+    }
 }
 
 module.exports = new UserController()

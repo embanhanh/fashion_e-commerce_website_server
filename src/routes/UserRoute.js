@@ -18,6 +18,7 @@ router.put('/account/address/setdefault/:id', authenticateToken, userController.
 router.get('/account/address', authenticateToken, userController.getAddressUser)
 router.get('/account/payment', authenticateToken, userController.getPaymentUser)
 router.get('/account/voucher', authenticateToken, userController.getVoucherUser)
+router.get('/account/favorite-products', authenticateToken, userController.getFavoriteProducts)
 router.get('/purchase/order/:id', authenticateToken, userController.getOrderDetail)
 router.get('/purchase/orders/:userId', authenticateToken, userController.getOrdersByUserId)
 router.get('/purchase', authenticateToken, userController.getPurchase)
