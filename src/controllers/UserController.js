@@ -4,8 +4,11 @@ const jwt = require('jsonwebtoken')
 const User = require('../models/UserModel')
 const Address = require('../models/AddressModel')
 const OrderProduct = require('../models/OrderProductModel')
+const Product = require('../models/ProductModel')
+const ProductVariant = require('../models/ProductVariantModel')
 const Voucher = require('../models/VoucherModel')
 const { bucket } = require('../configs/FirebaseConfig')
+const mongoose = require('mongoose')
 
 const { verifyFirebaseToken, gennerateAccessToken, gennerateRefreshToken } = require('../util/TokenUtil')
 
@@ -146,9 +149,6 @@ class UserController {
                 .populate('shippingAddress')
                 .populate('user')
                 .populate('vouchers.voucher')
-
-            console.log(orders)
-
             return res.status(200).json(orders)
         } catch (err) {
             next(err)
@@ -585,6 +585,82 @@ class UserController {
         } catch (err) {
             console.error('Error in getFavoriteProducts:', err)
             next(err)
+        }
+    }
+    // [PUT] /purchase/cancel/:order_id
+    async cancelOrder(req, res, next) {
+        const session = await mongoose.startSession(); // Bắt đầu phiên giao dịch
+        session.startTransaction();
+        const userId = req.user.data._id;
+        const orderId = req.params.order_id;
+        const { reason } = req.body
+
+        try {
+            // Tìm đơn hàng
+            const order = await OrderProduct.findById(orderId).session(session);
+            if (!order) {
+                await session.abortTransaction();
+                return res.status(404).json({ message: "Không tìm thấy đơn hàng." });
+            }
+
+            // Kiểm tra quyền sở hữu hoặc quyền hủy
+            if (order.user.toString() !== userId) {
+                await session.abortTransaction();
+                return res.status(403).json({ message: "Bạn không có quyền hủy đơn hàng này." });
+            }
+
+            // Kiểm tra trạng thái đơn hàng
+            if (order.status !== 'pending' && order.status !== 'processing') {
+                await session.abortTransaction();
+                return res.status(400).json({ message: "Không thể hủy đơn hàng ở giai đoạn này." });
+            }
+
+            // Khôi phục số lượng tồn kho
+            for (const item of order.products) {
+                const productVariant = await ProductVariant.findById(item.product).session(session);
+                if (productVariant) {
+                    productVariant.stockQuantity += item.quantity;
+                    await productVariant.save({ session });
+                }
+
+                const product = await Product.findById(productVariant.product).session(session);
+                if (product) {
+                    product.stockQuantity += item.quantity;
+                    await product.save({ session });
+                }
+            }
+
+            // Hoàn trả voucher (nếu có)
+            const user = await User.findById(userId).session(session);
+            user.vouchers.forEach((voucher) => {
+                if (order.vouchers.includes(voucher.voucher.toString())) {
+                    const existingVoucher = user.vouchers.find(
+                        (v) => v.voucher.toString() === voucher.voucher.toString()
+                    );
+                    if (existingVoucher) {
+                        existingVoucher.quantity += 1;
+                    } else {
+                        user.vouchers.push({ voucher: voucher.voucher, quantity: 1 });
+                    }
+                }
+            });
+            await user.save({ session });
+
+            // Cập nhật trạng thái đơn hàng và lý do hủy
+            order.status = 'cancelled';
+            order.cancelReason = reason; // Gán lý do hủy từ request body
+            await order.save({ session });
+
+            // Cam kết giao dịch
+            await session.commitTransaction();
+            session.endSession();
+
+            res.status(200).json({ message: "Đơn hàng đã hủy thành công.", order });
+        } catch (err) {
+            // Rollback lại nếu có lỗi
+            await session.abortTransaction();
+            session.endSession();
+            next(err);
         }
     }
 }

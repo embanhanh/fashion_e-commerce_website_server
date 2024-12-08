@@ -137,6 +137,7 @@ class OrderProductController {
                 vouchers,
                 expectedDeliveryDate,
                 shippingMethod,
+                cancelReason: null, // Không có lý do hủy
             })
 
             // Lưu đơn hàng
@@ -198,6 +199,10 @@ class OrderProductController {
             next(err)
         }
     }
+
+    // [PUT] /order/cancel/:order_id
+
+
 
     // [PUT] /order/update_status/:order_id
     // async updateOrderStatus(req, res, next) {
@@ -662,6 +667,8 @@ class OrderProductController {
             .populate('vouchers')
         res.status(200).json(orders)
     }
+
+
 }
 
 module.exports = new OrderProductController()

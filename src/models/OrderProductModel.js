@@ -26,6 +26,7 @@ const OrderProducts = new Schema(
             endDate: { type: Date, default: null },
         },
         transferOption: { type: String, enum: ['momo', 'bank'], default: null },
+        cancelReason: { type: String, default: null },
     },
     { timestamps: true }
 )
