@@ -14,7 +14,7 @@ const { sendOrderEmailAsync } = require('../util/EmailUtil')
 class OrderProductController {
     // [GET] /order
     async getAllOrder(req, res, next) {
-        const { productName, status, paymentMethod, shippingMethod, orderStartDate, orderEndDate } = req.query
+        const { productName, status, paymentMethod, shippingMethod, orderStartDate, orderEndDate, dateData } = req.query
         try {
             const filterConditions = {}
 
@@ -37,6 +37,19 @@ class OrderProductController {
                 }
                 if (orderEndDate) {
                     filterConditions.createdAt.$lte = new Date(orderEndDate)
+                }
+            }
+
+            if (dateData) {
+                filterConditions.deliveredAt = {}
+                filterConditions.createdAt = {}
+                if (dateData.now.start) {
+                    filterConditions.deliveredAt.$lte = new Date(dateData.now.end)
+                    filterConditions.createdAt.$lte = new Date(dateData.now.end)
+                }
+                if (dateData.prev.start) {
+                    filterConditions.deliveredAt.$gte = new Date(dateData.prev.start)
+                    filterConditions.createdAt.$gte = new Date(dateData.prev.start)
                 }
             }
 

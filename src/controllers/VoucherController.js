@@ -55,6 +55,11 @@ class VoucherController {
     //[POST] /voucher/create
     async createVoucher(req, res, next) {
         try {
+            const { code } = req.body
+            const existingVoucher = await Voucher.findOne({ code })
+            if (existingVoucher) {
+                return res.status(400).json({ message: 'Mã voucher đã tồn tại' })
+            }
             const voucher = await Voucher.create(req.body)
             if (!voucher) {
                 return res.status(404).json({ message: 'Không tạo được voucher' })
