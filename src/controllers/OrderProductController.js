@@ -41,16 +41,20 @@ class OrderProductController {
             }
 
             if (dateData) {
-                filterConditions.deliveredAt = {}
-                filterConditions.createdAt = {}
-                if (dateData.now.start) {
-                    filterConditions.deliveredAt.$lte = new Date(dateData.now.end)
-                    filterConditions.createdAt.$lte = new Date(dateData.now.end)
-                }
-                if (dateData.prev.start) {
-                    filterConditions.deliveredAt.$gte = new Date(dateData.prev.start)
-                    filterConditions.createdAt.$gte = new Date(dateData.prev.start)
-                }
+                filterConditions.$or = [
+                    {
+                        deliveredAt: {
+                            $gte: new Date(dateData.prev.start),
+                            $lte: new Date(dateData.now.end),
+                        },
+                    },
+                    {
+                        createdAt: {
+                            $gte: new Date(dateData.prev.start),
+                            $lte: new Date(dateData.now.end),
+                        },
+                    },
+                ]
             }
 
             let orderProducts = await OrderProduct.find(filterConditions)
@@ -58,6 +62,12 @@ class OrderProductController {
                     path: 'products.product',
                     populate: {
                         path: 'product',
+                        populate: {
+                            path: 'categories',
+                            populate: {
+                                path: 'parentCategory',
+                            },
+                        },
                     },
                 })
                 .populate('vouchers.voucher')
