@@ -12,7 +12,6 @@ class ProductController {
         try {
             const { page = 1, limit = 1, category, priceRange, color, size, sort, stockQuantity, soldQuantity, search, rating, brand } = req.query
             const pipeline = []
-            console.log(color)
 
             const conditions = []
             if (search) {
@@ -202,6 +201,15 @@ class ProductController {
                 totalPages: Math.ceil(total / Number(limit)),
                 currentPage: Number(page),
             })
+        } catch (err) {
+            next(err)
+        }
+    }
+    // [GET] /product-out-of-stock
+    async getProductOutOfStock(req, res, next) {
+        try {
+            const products = await Product.find({ stockQuantity: { $lte: 10 } })
+            res.status(200).json(products)
         } catch (err) {
             next(err)
         }

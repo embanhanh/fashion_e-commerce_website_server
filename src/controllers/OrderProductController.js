@@ -14,9 +14,13 @@ const { sendOrderEmailAsync } = require('../util/EmailUtil')
 class OrderProductController {
     // [GET] /order
     async getAllOrder(req, res, next) {
-        const { productName, status, paymentMethod, shippingMethod, orderStartDate, orderEndDate, dateData } = req.query
+        const { productName, status, paymentMethod, shippingMethod, orderStartDate, orderEndDate, dateData, manyStatus } = req.query
         try {
             const filterConditions = {}
+
+            if (manyStatus) {
+                filterConditions.status = { $in: manyStatus }
+            }
 
             if (status) {
                 filterConditions.status = status
