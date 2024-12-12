@@ -14,7 +14,7 @@ const OrderProducts = new Schema(
         productsPrice: { type: Number, required: true },
         shippingPrice: { type: Number, required: true, default: 0 },
         totalPrice: { type: Number, required: true },
-        status: { type: String, enum: ['pending', 'processing', 'delivering', 'delivered', 'cancelled'], default: 'pending' },
+        status: { type: String, enum: ['pending', 'processing', 'delivering', 'delivered', 'cancelled', 'returned'], default: 'pending' },
         shippingAddress: { type: mongoose.Schema.Types.ObjectId, ref: 'address', required: true },
         user: { type: mongoose.Schema.Types.ObjectId, ref: 'users', required: true },
         paidAt: { type: Date, default: null },
@@ -26,7 +26,10 @@ const OrderProducts = new Schema(
             endDate: { type: Date, default: null },
         },
         transferOption: { type: String, enum: ['momo', 'bank'], default: null },
-        cancelReason: { type: String, default: null },
+        reason: { type: String, default: null },
+        reasonAt: { type: Date, default: null },
+        evidence: { type: String, default: null },
+        statusReason: { type: String, enum: ['pending', 'approved', 'rejected'], default: null },
     },
     { timestamps: true }
 )

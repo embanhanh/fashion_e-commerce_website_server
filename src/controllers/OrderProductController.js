@@ -1,4 +1,5 @@
 const OrderProduct = require('../models/OrderProductModel')
+
 const ProductVariant = require('../models/ProductVariantModel')
 const Product = require('../models/ProductModel')
 const Address = require('../models/AddressModel')
@@ -140,7 +141,6 @@ class OrderProductController {
                 expectedDeliveryDate,
                 shippingMethod,
                 transferOption,
-                cancelReason: null, // Không có lý do hủy
             })
 
             // Lưu đơn hàng
@@ -194,7 +194,7 @@ class OrderProductController {
                 })
                 .populate('shippingAddress')
             // Send email
-            // sendOrderEmailAsync(populatedOrder, 'create')
+            sendOrderEmailAsync(populatedOrder, 'create')
         } catch (err) {
             // Rollback lại trong trường hợp có lỗi
             await session.abortTransaction()
@@ -202,10 +202,6 @@ class OrderProductController {
             next(err)
         }
     }
-
-    // [PUT] /order/cancel/:order_id
-
-
 
     // [PUT] /order/update_status/:order_id
     // async updateOrderStatus(req, res, next) {
@@ -310,14 +306,15 @@ class OrderProductController {
                         notifications.push({
                             userId: updatedOrder.user.toString(),
                             orderId: updatedOrder._id.toString(),
-                            message: `Đơn hàng ${updatedOrder._id} của bạn đã ${status === 'processing'
-                                ? 'được xác nhận'
-                                : status === 'delivering'
+                            message: `Đơn hàng ${updatedOrder._id} của bạn đã ${
+                                status === 'processing'
+                                    ? 'được xác nhận'
+                                    : status === 'delivering'
                                     ? 'được giao'
                                     : status === 'delivered'
-                                        ? 'được giao hàng thành công'
-                                        : 'bị hủy'
-                                }`,
+                                    ? 'được giao hàng thành công'
+                                    : 'bị hủy'
+                            }`,
                             createdAt: new Date(),
                             expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
                             read: false,
@@ -671,8 +668,6 @@ class OrderProductController {
             .populate('vouchers')
         res.status(200).json(orders)
     }
-
-
 }
 
 module.exports = new OrderProductController()
