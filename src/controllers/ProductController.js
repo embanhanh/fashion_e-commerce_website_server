@@ -463,7 +463,7 @@ class ProductController {
             if (!product) {
                 return res.status(404).json({ message: 'Không tìm thấy sản phẩm' })
             }
-            //Tìm kiếm đơn hàng có sản phẩm và gần nhất
+            // Tìm kiếm đơn hàng có sản phẩm và gần nhất
             const order = await OrderProduct.findOne({
                 'products.product': product_id,
                 user: userId,
@@ -535,6 +535,11 @@ class ProductController {
             } else {
                 await ratingRef.update({ ratings: admin.firestore.FieldValue.arrayUnion(newRating) })
             }
+            // Tính đánh giá trung bình của sản phẩm và lưu lại
+            const ratings = ratingDoc.data().ratings
+            const averageRating = (ratings.reduce((sum, rating) => sum + rating.rating, 0) + Number(rating)) / (ratings.length + 1)
+            await Product.findByIdAndUpdate(product_id, { rating: averageRating })
+
             res.status(200).json({ message: 'Đánh giá sản phẩm thành công' })
         } catch (err) {
             next(err)
