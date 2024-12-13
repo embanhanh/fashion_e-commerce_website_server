@@ -12,7 +12,6 @@ class ProductController {
         try {
             const { page = 1, limit = 1, category, priceRange, color, size, sort, stockQuantity, soldQuantity, search, rating, brand } = req.query
             const pipeline = []
-            console.log(color)
 
             const conditions = []
             if (search) {
@@ -202,6 +201,15 @@ class ProductController {
                 totalPages: Math.ceil(total / Number(limit)),
                 currentPage: Number(page),
             })
+        } catch (err) {
+            next(err)
+        }
+    }
+    // [GET] /product-out-of-stock
+    async getProductOutOfStock(req, res, next) {
+        try {
+            const products = await Product.find({ stockQuantity: { $lte: 10 } })
+            res.status(200).json(products)
         } catch (err) {
             next(err)
         }
@@ -455,7 +463,7 @@ class ProductController {
             if (!product) {
                 return res.status(404).json({ message: 'Không tìm thấy sản phẩm' })
             }
-            //Tìm kiếm đơn hàng có sản phẩm và gần nhất
+            // Tìm kiếm đơn hàng có sản phẩm và gần nhất
             const order = await OrderProduct.findOne({
                 'products.product': product_id,
                 user: userId,
@@ -527,6 +535,11 @@ class ProductController {
             } else {
                 await ratingRef.update({ ratings: admin.firestore.FieldValue.arrayUnion(newRating) })
             }
+            // Tính đánh giá trung bình của sản phẩm và lưu lại
+            const ratings = ratingDoc.data().ratings
+            const averageRating = (ratings.reduce((sum, rating) => sum + rating.rating, 0) + Number(rating)) / (ratings.length + 1)
+            await Product.findByIdAndUpdate(product_id, { rating: averageRating })
+
             res.status(200).json({ message: 'Đánh giá sản phẩm thành công' })
         } catch (err) {
             next(err)

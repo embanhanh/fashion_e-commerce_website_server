@@ -10,6 +10,15 @@ class PromotionalComboController {
             next(err)
         }
     }
+    // [GET] /promotional-combos-active
+    async getActivePromotionalCombos(req, res, next) {
+        try {
+            const promotionalCombos = await PromotionalCombo.find({ startDate: { $lte: new Date() }, endDate: { $gte: new Date() } })
+            res.json(promotionalCombos)
+        } catch (err) {
+            next(err)
+        }
+    }
     // [POST] /promotional-combos/create
     async createPromotionalCombo(req, res, next) {
         try {

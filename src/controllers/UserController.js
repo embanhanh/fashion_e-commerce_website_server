@@ -23,7 +23,7 @@ class UserController {
                 return res.status(400).json({ message: 'Không có tài khoản' })
             }
             // Tìm user theo email
-            const user = await User.findOne({ email })
+            const user = await User.findOne({ email, password: { $ne: '' }, id: '' })
             if (!user) {
                 return res.status(400).json({ message: 'Tài khoản hoặc mật khẩu không chính xác, vui lòng thử lại' })
             }
@@ -110,7 +110,7 @@ class UserController {
                 return res.status(400).json({ message: 'Vui lòng nhập đầy đủ thông tin' })
             }
 
-            let user = await User.findOne({ email })
+            let user = await User.findOne({ email, password: { $ne: '' }, id: '' })
             if (user) {
                 return res.status(400).json({ message: 'Email đã tồn tại, vui lòng nhập lại email' })
             }
