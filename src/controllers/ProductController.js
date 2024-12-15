@@ -465,10 +465,20 @@ class ProductController {
             }
             // Tìm kiếm đơn hàng có sản phẩm và gần nhất
             const order = await OrderProduct.findOne({
-                'products.product': product_id,
+                'products.product': {
+                    $in: await ProductVariant.distinct('_id', { product: product_id }),
+                },
                 user: userId,
                 status: 'delivered',
-            }).sort({ deliveredAt: -1 })
+            })
+                .populate({
+                    path: 'products.product',
+                    populate: {
+                        path: 'product',
+                        model: 'products',
+                    },
+                })
+                .sort({ deliveredAt: -1 })
 
             if (!order) {
                 return res.status(404).json({
