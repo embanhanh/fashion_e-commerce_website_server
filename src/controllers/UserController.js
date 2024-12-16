@@ -5,7 +5,9 @@ const User = require('../models/UserModel')
 const Address = require('../models/AddressModel')
 const OrderProduct = require('../models/OrderProductModel')
 const Voucher = require('../models/VoucherModel')
+const VerificationCode = require('../models/VerificationCode')
 const { bucket } = require('../configs/FirebaseConfig')
+const { sendVerificationEmail } = require('../configs/EmailConfig')
 
 const { verifyFirebaseToken, gennerateAccessToken, gennerateRefreshToken } = require('../util/TokenUtil')
 
@@ -115,6 +117,59 @@ class UserController {
             await user.save()
 
             return res.status(201).json({ user: { id: user._id, email: user.email } })
+        } catch (err) {
+            next(err)
+        }
+    }
+
+    // [POST] /user/check-email
+    async checkEmail(req, res, next) {
+        try {
+            const { email } = req.body
+
+            // Kiểm tra email đã tồn tại chưa
+            const existingUser = await User.findOne({ email, password: { $ne: '' }, id: '' })
+            if (existingUser) {
+                return res.status(400).json({ message: 'Email đã tồn tại' })
+            }
+
+            // Tạo mã xác thực ngẫu nhiên 6 số
+            const verificationCode = Math.floor(100000 + Math.random() * 900000).toString()
+
+            // Lưu mã xác thực vào database
+            await VerificationCode.create({
+                email,
+                code: verificationCode,
+            })
+
+            // Gửi email xác thực
+            await sendVerificationEmail(email, verificationCode)
+
+            res.status(200).json({ message: 'Mã xác thực đã được gửi đến email của bạn' })
+        } catch (err) {
+            next(err)
+        }
+    }
+
+    // [POST] /user/verify-email
+    async verifyEmail(req, res, next) {
+        try {
+            const { email, code, password } = req.body
+
+            // Kiểm tra mã xác thực
+            const verification = await VerificationCode.findOne({ email, code })
+            if (!verification) {
+                return res.status(400).json({ message: 'Mã xác thực không chính xác hoặc đã hết hạn' })
+            }
+
+            // Tạo tài khoản mới
+            const user = new User({ email, password })
+            await user.save()
+
+            // Xóa mã xác thực
+            await VerificationCode.deleteOne({ email, code })
+
+            res.status(201).json({ user: { id: user._id, email: user.email } })
         } catch (err) {
             next(err)
         }

@@ -39,4 +39,24 @@ const sendOrderEmail = async (to, subject, content) => {
     }
 }
 
-module.exports = { sendOrderEmail, verifyConnection }
+const sendVerificationEmail = async (email, verificationCode) => {
+    try {
+        const mailOptions = {
+            from: process.env.EMAIL_USER,
+            to: email,
+            subject: 'Xác thực email đăng ký',
+            html: `
+        <h2>Xác thực email của bạn</h2>
+        <p>Mã xác thực của bạn là: <strong>${verificationCode}</strong></p>
+        <p>Mã này sẽ hết hạn sau 5 phút.</p>
+      `,
+        }
+
+        return await transporter.sendMail(mailOptions)
+    } catch (error) {
+        console.error('Lỗi gửi email:', error)
+        return false
+    }
+}
+
+module.exports = { sendOrderEmail, verifyConnection, sendVerificationEmail }
