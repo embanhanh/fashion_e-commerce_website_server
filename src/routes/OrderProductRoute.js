@@ -5,10 +5,10 @@ const { authenticateToken } = require('../middlewares/AuthMiddleware')
 
 router.post('/create', authenticateToken, orderProductController.createOrder)
 router.post('/create-from-guest', orderProductController.createOrderFromGuest)
-router.get('/', authenticateToken, orderProductController.getAllOrder)
+router.get('/:order_id', authenticateToken, orderProductController.getOrderById)
+router.get('/:user_id', authenticateToken, orderProductController.getOrdersByUserId)
 router.put('/update-status-many', authenticateToken, orderProductController.updateOrderStatusMany)
 router.put('/update/:order_id', authenticateToken, orderProductController.updateOrder)
-router.get('/:user_id', authenticateToken, orderProductController.getOrdersByUserId)
-router.get('/:order_id', authenticateToken, orderProductController.getOrderById)
+router.get('/', authenticateToken, orderProductController.getAllOrder)
 
 module.exports = router

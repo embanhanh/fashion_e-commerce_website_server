@@ -1,4 +1,5 @@
 const OrderProduct = require('../models/OrderProductModel')
+
 const ProductVariant = require('../models/ProductVariantModel')
 const Product = require('../models/ProductModel')
 const Address = require('../models/AddressModel')
@@ -30,7 +31,7 @@ class OrderProductController {
                 filterConditions.paymentMethod = paymentMethod
             }
 
-            if (shippingMethod) {
+            if (shippingMethod && shippingMethod !== 'all') {
                 filterConditions.shippingMethod = shippingMethod
             }
 
@@ -84,7 +85,7 @@ class OrderProductController {
                     order.products.some((product) => product.product.product.name.toLowerCase().includes(productName.toLowerCase().trim()))
                 )
             }
-
+            console.log(orderProducts.length)
             res.status(200).json(orderProducts)
         } catch (err) {
             next(err)
@@ -220,7 +221,7 @@ class OrderProductController {
                 })
                 .populate('shippingAddress')
             // Send email
-            // sendOrderEmailAsync(populatedOrder, 'create')
+            sendOrderEmailAsync(populatedOrder, 'create')
         } catch (err) {
             // Rollback lại trong trường hợp có lỗi
             await session.abortTransaction()
