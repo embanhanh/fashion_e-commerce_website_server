@@ -22,7 +22,6 @@ router.get('/account/favorite-products', authenticateToken, userController.getFa
 router.get('/purchase/order/:id', authenticateToken, userController.getOrderDetail)
 router.put('/purchase/cancel/:order_id', authenticateToken, userController.cancelOrder)
 router.put('/purchase/return/:order_id', authenticateToken, userController.returnOrder)
-router.put('/purchase/received/:order_id', authenticateToken, userController.receivedOrder)
 router.get('/purchase', authenticateToken, userController.getPurchase)
 router.put('/clients/block/:userId', authenticateToken, authorizeRole(['admin']), userController.blockClient)
 router.patch('/clients/block-many', authenticateToken, authorizeRole(['admin']), userController.blockManyClient)

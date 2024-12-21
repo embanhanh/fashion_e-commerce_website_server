@@ -28,7 +28,7 @@ const OrderProducts = new Schema(
         transferOption: { type: String, enum: ['momo', 'bank'], default: null },
         reason: { type: String, default: null },
         reasonAt: { type: Date, default: null },
-        evidence: [{ type: String, default: null }],
+        evidences: [{ type: String, default: null }],
         statusReason: { type: String, enum: ['pending', 'approved', 'rejected'], default: null },
     },
     { timestamps: true }
