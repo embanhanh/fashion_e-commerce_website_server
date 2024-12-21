@@ -293,6 +293,18 @@ class ProductController {
 
                 savedProduct.variants = productVariants.map((variant) => variant._id)
                 await savedProduct.save()
+            } else {
+                const newVariant = new ProductVariant({
+                    product: savedProduct._id,
+                    size: '',
+                    color: '',
+                    stockQuantity: stockQuantity,
+                    imageUrl: urlImage[0],
+                    price: originalPrice,
+                })
+                await newVariant.save()
+                savedProduct.variants = [newVariant._id]
+                await savedProduct.save()
             }
 
             res.status(201).json({

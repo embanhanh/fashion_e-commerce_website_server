@@ -7,8 +7,9 @@ const OrderProduct = require('../models/OrderProductModel')
 const Product = require('../models/ProductModel')
 const ProductVariant = require('../models/ProductVariantModel')
 const Voucher = require('../models/VoucherModel')
-
+const VerificationCode = require('../models/VerificationCode')
 const { bucket } = require('../configs/FirebaseConfig')
+const { sendVerificationEmail } = require('../configs/EmailConfig')
 const mongoose = require('mongoose')
 
 const { verifyFirebaseToken, gennerateAccessToken, gennerateRefreshToken } = require('../util/TokenUtil')
@@ -119,6 +120,92 @@ class UserController {
             await user.save()
 
             return res.status(201).json({ user: { id: user._id, email: user.email } })
+        } catch (err) {
+            next(err)
+        }
+    }
+
+    // [POST] /user/check-email
+    async checkEmail(req, res, next) {
+        try {
+            const { email, mode } = req.body
+
+            if (mode === 'signup') {
+                // Kiểm tra email đã tồn tại chưa
+                const existingUser = await User.findOne({ email, password: { $ne: '' }, id: '' })
+                if (existingUser) {
+                    return res.status(400).json({ message: 'Email đã tồn tại' })
+                }
+            } else if (mode === 'forgot-password') {
+                // Kiểm tra email đã tồn tại chưa
+                const existingUser = await User.findOne({ email, password: { $ne: '' }, id: '' })
+                if (!existingUser) {
+                    return res.status(400).json({ message: 'Email không tồn tại' })
+                }
+            }
+
+            // Tạo mã xác thực ngẫu nhiên 6 số
+            const verificationCode = Math.floor(100000 + Math.random() * 900000).toString()
+
+            // Lưu mã xác thực vào database
+            await VerificationCode.create({
+                email,
+                code: verificationCode,
+            })
+
+            // Gửi email xác thực
+            await sendVerificationEmail(email, verificationCode)
+
+            res.status(200).json({ message: 'Mã xác thực đã được gửi đến email của bạn' })
+        } catch (err) {
+            next(err)
+        }
+    }
+
+    // [POST] /user/verify-email
+    async verifyEmail(req, res, next) {
+        try {
+            const { email, code, password, mode } = req.body
+
+            // Kiểm tra mã xác thực
+            const verification = await VerificationCode.findOne({ email, code })
+            if (!verification) {
+                return res.status(400).json({ message: 'Mã xác thực không chính xác hoặc đã hết hạn' })
+            }
+
+            if (mode === 'signup') {
+                // Tạo tài khoản mới
+                const user = new User({ email, password })
+                await user.save()
+                // Xóa mã xác thực
+                await VerificationCode.deleteOne({ email, code })
+
+                res.status(201).json({ user: { id: user._id, email: user.email } })
+            } else if (mode === 'forgot-password') {
+                // Xóa mã xác thực
+                res.status(200).json({ message: 'Mã xác thực đã được xác nhận' })
+            }
+        } catch (err) {
+            next(err)
+        }
+    }
+
+    // [POST] /user/reset-password
+    async resetPassword(req, res, next) {
+        try {
+            const { email, code, password } = req.body
+            const user = await User.findOne({ email, password: { $ne: '' }, id: '' })
+            if (!user) {
+                return res.status(400).json({ message: 'Email không tồn tại' })
+            }
+            const verification = await VerificationCode.findOne({ email, code })
+            if (!verification) {
+                return res.status(400).json({ message: 'Mã xác thực không chính xác hoặc đã hết hạn' })
+            }
+            user.password = password
+            await user.save()
+            await VerificationCode.deleteOne({ email, code })
+            return res.status(200).json({ message: 'Mật khẩu đã được đặt lại thành công' })
         } catch (err) {
             next(err)
         }
