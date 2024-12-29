@@ -9,6 +9,7 @@ router.get('/:order_id', authenticateToken, orderProductController.getOrderById)
 router.get('/:user_id', authenticateToken, orderProductController.getOrdersByUserId)
 router.put('/update-status-many', authenticateToken, orderProductController.updateOrderStatusMany)
 router.put('/update/:order_id', authenticateToken, orderProductController.updateOrder)
+router.put('/confirm-return/:order_id', authenticateToken, orderProductController.confirmReturnOrder)
 router.get('/', authenticateToken, orderProductController.getAllOrder)
 
 module.exports = router

@@ -623,14 +623,16 @@ class UserController {
             const { _id: userId } = req.user.data
             const user = await User.findOne({ _id: userId }).populate({
                 path: 'favoriteProducts',
-                model: 'product_variant',
-                populate: {
-                    path: 'product',
-                    model: 'products',
-                    populate: {
+                model: 'products',
+                populate: [
+                    {
                         path: 'categories',
                     },
-                },
+                    {
+                        path: 'variants',
+                        model: 'product_variant',
+                    },
+                ],
             })
 
             if (!user) {
@@ -724,15 +726,19 @@ class UserController {
         }
     }
 
-    // [PUT] /user/return-order/:orderId
+    // [PUT] /user/purchase/return/:order_id
     async returnOrder(req, res, next) {
         const session = await mongoose.startSession()
         session.startTransaction()
-        const userId = req.user.data._id
-        const orderId = req.params.orderId
-        const { reason, evidence } = req.body
 
         try {
+            const orderId = req.params.order_id
+            const userId = req.user.data._id
+            const { reason, evidence } = req.body
+            console.log('evidence', evidence)
+            console.log('reason', reason)
+            console.log('req.body', req.body)
+
             // Tìm đơn hàng
             const order = await OrderProduct.findById(orderId).session(session)
             if (!order) {
@@ -741,28 +747,27 @@ class UserController {
             }
 
             // Kiểm tra quyền sở hữu
-            if (order.user.toString() !== userId) {
+            if (order.user.toString() !== userId.toString()) {
                 await session.abortTransaction()
                 return res.status(403).json({ message: 'Bạn không có quyền trả đơn hàng này.' })
             }
 
-            // Kiểm tra trạng thái đ��n hàng
+            // Kiểm tra trạng thái đơn hàng
             if (order.status !== 'delivered') {
                 await session.abortTransaction()
                 return res.status(400).json({ message: 'Chỉ có thể trả hàng với đơn hàng đã giao thành công.' })
             }
 
-            // Cập nhật đơn hàng
+            // Cập nhật trạng thái đơn hàng
             order.status = 'returned'
             order.reason = reason
             order.reasonAt = new Date()
-            order.evidence = evidence
+            order.evidences = evidence
             order.statusReason = 'pending'
             await order.save({ session })
 
-            // Commit giao dịch
+            // Commit transaction
             await session.commitTransaction()
-            session.endSession()
 
             // Populate và trả về kết quả
             const populatedOrder = await OrderProduct.findById(orderId)
@@ -783,135 +788,9 @@ class UserController {
             })
         } catch (err) {
             await session.abortTransaction()
-            session.endSession()
             next(err)
-        }
-    }
-
-    // [PUT] /user/purchase/received/:order_id
-    async receivedOrder(req, res, next) {
-        const session = await mongoose.startSession()
-        session.startTransaction()
-        const userId = req.user.data._id
-        const orderId = req.params.order_id
-
-        try {
-            // Tìm đơn hàng
-            const order = await OrderProduct.findById(orderId).session(session)
-            if (!order) {
-                await session.abortTransaction()
-                return res.status(404).json({ message: 'Không tìm thấy đơn hàng.' })
-            }
-
-            // Kiểm tra quyền sở hữu
-            if (order.user.toString() !== userId) {
-                await session.abortTransaction()
-                return res.status(403).json({ message: 'Bạn không có quyền xác nhận đơn hàng này.' })
-            }
-
-            // Kiểm tra trạng thái đơn hàng
-            if (order.status !== 'delivering') {
-                await session.abortTransaction()
-                return res.status(400).json({ message: 'Chỉ có thể xác nhận với đơn hàng đang giao.' })
-            }
-
-            // Cập nhật trạng thái đơn hàng
-            order.status = 'delivered'
-            order.deliveredAt = new Date()
-            await order.save({ session })
-
-            // Commit giao dịch
-            await session.commitTransaction()
+        } finally {
             session.endSession()
-
-            // Populate và trả về kết quả
-            const populatedOrder = await OrderProduct.findById(orderId)
-                .populate({
-                    path: 'products.product',
-                    populate: {
-                        path: 'product',
-                        populate: { path: 'categories' },
-                    },
-                })
-                .populate('shippingAddress')
-                .populate('user')
-                .populate('vouchers.voucher')
-
-            console.log('populatedOrder', populatedOrder)
-            console.log('Đơn hàng đã được xác nhận nhận hàng thành công.')
-            return res.status(200).json({
-                message: 'Xác nhận đã nhận hàng thành công.',
-                order: populatedOrder,
-            })
-        } catch (err) {
-            await session.abortTransaction()
-            session.endSession()
-            next(err)
-        }
-    }
-
-    // [PUT] /user/purchase/return/:order_id
-    async returnOrder(req, res, next) {
-        const session = await mongoose.startSession()
-        session.startTransaction()
-        const userId = req.user.data._id
-        const orderId = req.params.order_id
-        const { reason, evidence } = req.body
-        try {
-            // Tìm đơn hàng
-            const order = await OrderProduct.findById(orderId).session(session)
-            if (!order) {
-                await session.abortTransaction()
-                return res.status(404).json({ message: 'Không tìm thấy đơn hàng.' })
-            }
-
-            // Kiểm tra quyền sở hữu
-            if (order.user.toString() !== userId) {
-                await session.abortTransaction()
-                return res.status(403).json({ message: 'Bạn không có quyền xác nhận đơn hàng này.' })
-            }
-
-            // Kiểm tra trạng thái đơn hàng
-            if (order.status !== 'delivered') {
-                await session.abortTransaction()
-                return res.status(400).json({ message: 'Chỉ có thể trả hàng với đơn hàng đã giao thành công.' })
-            }
-
-            // Cập nhật trạng thái đơn hàng
-            order.status = 'returned'
-            order.reason = reason
-            order.reasonAt = new Date()
-            order.evidence = evidence
-            order.statusReason = 'pending'
-            await order.save({ session })
-
-            // Commit giao dịch
-            await session.commitTransaction()
-            session.endSession()
-
-            // Populate và trả về kết quả
-            const populatedOrder = await OrderProduct.findById(orderId)
-                .populate({
-                    path: 'products.product',
-                    populate: {
-                        path: 'product',
-                        populate: { path: 'categories' },
-                    },
-                })
-                .populate('shippingAddress')
-                .populate('user')
-                .populate('vouchers.voucher')
-
-            console.log('populatedOrder', populatedOrder)
-            console.log('Đơn hàng đã được xác nhận nhận hàng thành công.')
-            return res.status(200).json({
-                message: 'Xác nhận đã nhận hàng thành công.',
-                order: populatedOrder,
-            })
-        } catch (err) {
-            await session.abortTransaction()
-            session.endSession()
-            next(err)
         }
     }
 }

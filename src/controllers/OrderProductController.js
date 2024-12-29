@@ -454,13 +454,13 @@ class OrderProductController {
                             productVariant.stockQuantity -= difference
                             const product = await Product.findById(productVariant.product)
                             product.stockQuantity -= difference
-                            await product.save()
+                            await product.save({ session })
                         } else {
                             // Giảm số lượng đặt hàng, tăng tồn kho
                             productVariant.stockQuantity += Math.abs(difference)
                             const product = await Product.findById(productVariant.product)
                             product.stockQuantity += Math.abs(difference)
-                            await product.save()
+                            await product.save({ session })
                         }
 
                         await productVariant.save()
@@ -663,16 +663,16 @@ class OrderProductController {
 
             res.status(201).json(savedOrder)
             // Send email
-            // const populatedOrder = await OrderProduct.findById(savedOrder._id)
-            //     .populate('user')
-            //     .populate({
-            //         path: 'products.product',
-            //         populate: {
-            //             path: 'product',
-            //         },
-            //     })
-            //     .populate('shippingAddress')
-            // sendOrderEmailAsync(populatedOrder, 'create')
+            const populatedOrder = await OrderProduct.findById(savedOrder._id)
+                .populate('user')
+                .populate({
+                    path: 'products.product',
+                    populate: {
+                        path: 'product',
+                    },
+                })
+                .populate('shippingAddress')
+            sendOrderEmailAsync(populatedOrder, 'create')
         } catch (e) {
             await session.abortTransaction()
             next(e)
@@ -694,6 +694,62 @@ class OrderProductController {
             .populate('shippingAddress')
             .populate('vouchers')
         res.status(200).json(orders)
+    }
+
+    // [PUT] /order/confirm-return/:order_id
+    async confirmReturnOrder(req, res, next) {
+        const session = await mongoose.startSession()
+        session.startTransaction()
+        try {
+            const orderId = req.params.order_id
+            const { statusReason } = req.body
+
+            const order = await OrderProduct.findById(orderId)
+            if (!order) {
+                await session.abortTransaction()
+                return res.status(404).json({ message: 'Không tìm thấy đơn hàng' })
+            }
+
+            // Kiểm tra trạng thái đơn hàng
+            if (!order.statusReason) {
+                await session.abortTransaction()
+                return res.status(400).json({ message: 'Đơn hàng không yêu cầu trả hàng' })
+            }
+
+            // Khôi phục số lượng tồn kho
+            for (const item of order.products) {
+                const productVariant = await ProductVariant.findById(item.product).session(session)
+                if (productVariant) {
+                    productVariant.stockQuantity += item.quantity
+                    await productVariant.save({ session })
+                }
+
+                const product = await Product.findById(productVariant.product).session(session)
+                if (product) {
+                    product.stockQuantity += item.quantity
+                    await product.save({ session })
+                }
+            }
+
+            // Cập nhật trạng thái đơn hàng
+            order.statusReason = statusReason
+            await order.save({ session })
+
+            // Commit transaction
+            await session.commitTransaction()
+            session.endSession()
+
+            res.status(200).json({ message: 'Cập nhật trạng thái thành công', order })
+        } catch (error) {
+            // Log lỗi chi tiết
+            console.error('Error in confirmReturnOrder:', error)
+
+            // Rollback transaction
+            await session.abortTransaction()
+            session.endSession()
+
+            next(error)
+        }
     }
 }
 
