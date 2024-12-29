@@ -454,13 +454,13 @@ class OrderProductController {
                             productVariant.stockQuantity -= difference
                             const product = await Product.findById(productVariant.product)
                             product.stockQuantity -= difference
-                            await product.save({})
+                            await product.save()
                         } else {
                             // Giảm số lượng đặt hàng, tăng tồn kho
                             productVariant.stockQuantity += Math.abs(difference)
                             const product = await Product.findById(productVariant.product)
                             product.stockQuantity += Math.abs(difference)
-                            await product.save({})
+                            await product.save()
                         }
 
                         await productVariant.save()
