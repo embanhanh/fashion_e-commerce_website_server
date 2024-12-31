@@ -5,6 +5,7 @@ const upload = require('../middlewares/uploadMiddleware')
 const productController = require('../controllers/ProductController')
 
 router.post('/like/:product_id', authenticateToken, productController.likeProduct)
+router.get('/best-seller', productController.getBestSeller)
 router.put('/edit/:product_name', authenticateToken, authorizeRole(['admin']), productController.updateProduct)
 router.post('/create', authenticateToken, authorizeRole(['admin']), productController.createProduct)
 router.get('/out-of-stock', authenticateToken, authorizeRole(['admin']), productController.getProductOutOfStock)

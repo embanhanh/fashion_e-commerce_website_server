@@ -366,215 +366,214 @@ class OrderProductController {
             await batch.commit()
 
             res.status(200).json({ orderIds, status })
-            // Send email
-            // for (const order of updatedOrders) {
-            //     const populatedOrder = await OrderProduct.findById(order._id)
-            //         .populate('user')
-            //         .populate({
-            //             path: 'products.product',
-            //             populate: {
-            //                 path: 'product',
-            //             },
-            //         })
-            //         .populate('shippingAddress')
-            //     sendOrderEmailAsync(populatedOrder, 'status')
-            // }
+            for (const order of updatedOrders) {
+                const populatedOrder = await OrderProduct.findById(order._id)
+                    .populate('user')
+                    .populate({
+                        path: 'products.product',
+                        populate: {
+                            path: 'product',
+                        },
+                    })
+                    .populate('shippingAddress')
+                sendOrderEmailAsync(populatedOrder, 'status')
+            }
         } catch (error) {
             next(error)
         }
     }
-    // [PUT] /order/update/:order_id **Chưa test**
-    async updateOrder(req, res, next) {
-        try {
-            const orderId = req.params.order_id
-            const {
-                shippingAddress, // Mới
-                products, // Mới: [{ product: ObjectId, quantity: Number }]
-                vouchers, // Mới (nếu cần)
-                paymentMethod,
-            } = req.body
+    // // [PUT] /order/update/:order_id **Chưa test**
+    // async updateOrder(req, res, next) {
+    //     try {
+    //         const orderId = req.params.order_id
+    //         const {
+    //             shippingAddress, // Mới
+    //             products, // Mới: [{ product: ObjectId, quantity: Number }]
+    //             vouchers, // Mới (nếu cần)
+    //             paymentMethod,
+    //         } = req.body
 
-            // Bước 1: Tìm đơn hàng cần cập nhật
-            const order = await OrderProduct.findById(orderId)
-            if (!order) {
-                return res.status(404).json({ message: 'Không tìm thấy đơn hàng' })
-            }
+    //         // Bước 1: Tìm đơn hàng cần cập nhật
+    //         const order = await OrderProduct.findById(orderId)
+    //         if (!order) {
+    //             return res.status(404).json({ message: 'Không tìm thấy đơn hàng' })
+    //         }
 
-            // Bước 2: Kiểm tra trạng thái đơn hàng có cho phép cập nhật
-            const allowedStatuses = ['pending']
-            if (!allowedStatuses.includes(order.status)) {
-                return res.status(400).json({ message: `Không thể cập nhật đơn hàng với trạng thái: ${order.status}` })
-            }
+    //         // Bước 2: Kiểm tra trạng thái đơn hàng có cho phép cập nhật
+    //         const allowedStatuses = ['pending']
+    //         if (!allowedStatuses.includes(order.status)) {
+    //             return res.status(400).json({ message: `Không thể cập nhật đơn hàng với trạng thái: ${order.status}` })
+    //         }
 
-            // Bước 3: Xử lý cập nhật địa chỉ giao hàng nếu có
-            if (shippingAddress) {
-                // Kiểm tra địa chỉ có tồn tại
-                const newAddress = await Address.findById(shippingAddress)
-                if (!newAddress) {
-                    return res.status(404).json({ message: 'Địa chỉ giao hàng không tồn tại' })
-                }
-                order.shippingAddress = shippingAddress
-            }
+    //         // Bước 3: Xử lý cập nhật địa chỉ giao hàng nếu có
+    //         if (shippingAddress) {
+    //             // Kiểm tra địa chỉ có tồn tại
+    //             const newAddress = await Address.findById(shippingAddress)
+    //             if (!newAddress) {
+    //                 return res.status(404).json({ message: 'Địa chỉ giao hàng không tồn tại' })
+    //             }
+    //             order.shippingAddress = shippingAddress
+    //         }
 
-            // Bước 4: Xử lý cập nhật sản phẩm và số lượng
-            if (products && Array.isArray(products)) {
-                // Tạo một bản đồ hiện tại của sản phẩm trong đơn hàng
-                const currentProductsMap = {}
-                order.products.forEach((item) => {
-                    currentProductsMap[item.product.toString()] = item.quantity
-                })
+    //         // Bước 4: Xử lý cập nhật sản phẩm và số lượng
+    //         if (products && Array.isArray(products)) {
+    //             // Tạo một bản đồ hiện tại của sản phẩm trong đơn hàng
+    //             const currentProductsMap = {}
+    //             order.products.forEach((item) => {
+    //                 currentProductsMap[item.product.toString()] = item.quantity
+    //             })
 
-                // Tạo một bản đồ mới từ request
-                const newProductsMap = {}
-                products.forEach((item) => {
-                    newProductsMap[item.product.toString()] = item.quantity
-                })
+    //             // Tạo một bản đồ mới từ request
+    //             const newProductsMap = {}
+    //             products.forEach((item) => {
+    //                 newProductsMap[item.product.toString()] = item.quantity
+    //             })
 
-                // Tìm các sản phẩm cần cập nhật
-                const allProductIds = new Set([...Object.keys(currentProductsMap), ...Object.keys(newProductsMap)])
+    //             // Tìm các sản phẩm cần cập nhật
+    //             const allProductIds = new Set([...Object.keys(currentProductsMap), ...Object.keys(newProductsMap)])
 
-                for (const productId of allProductIds) {
-                    const currentQuantity = currentProductsMap[productId] || 0
-                    const newQuantity = newProductsMap[productId] || 0
-                    const difference = newQuantity - currentQuantity
+    //             for (const productId of allProductIds) {
+    //                 const currentQuantity = currentProductsMap[productId] || 0
+    //                 const newQuantity = newProductsMap[productId] || 0
+    //                 const difference = newQuantity - currentQuantity
 
-                    if (difference !== 0) {
-                        const productVariant = await ProductVariant.findById(productId)
-                        if (!productVariant) {
-                            return res.status(404).json({ message: `Không tìm thấy phân loại sản phẩm ${productId}` })
-                        }
+    //                 if (difference !== 0) {
+    //                     const productVariant = await ProductVariant.findById(productId)
+    //                     if (!productVariant) {
+    //                         return res.status(404).json({ message: `Không tìm thấy phân loại sản phẩm ${productId}` })
+    //                     }
 
-                        if (difference > 0) {
-                            // Tăng số lượng đặt hàng, kiểm tra tồn kho
-                            if (productVariant.stockQuantity < difference) {
-                                return res.status(400).json({
-                                    message: `Không đủ tồn kho cho phân loại sản phẩm ${productVariant._id}. Có sẵn: ${productVariant.stockQuantity}, Yêu cầu thêm: ${difference}`,
-                                })
-                            }
-                            productVariant.stockQuantity -= difference
-                            const product = await Product.findById(productVariant.product)
-                            product.stockQuantity -= difference
-                            await product.save()
-                        } else {
-                            // Giảm số lượng đặt hàng, tăng tồn kho
-                            productVariant.stockQuantity += Math.abs(difference)
-                            const product = await Product.findById(productVariant.product)
-                            product.stockQuantity += Math.abs(difference)
-                            await product.save()
-                        }
+    //                     if (difference > 0) {
+    //                         // Tăng số lượng đặt hàng, kiểm tra tồn kho
+    //                         if (productVariant.stockQuantity < difference) {
+    //                             return res.status(400).json({
+    //                                 message: `Không đủ tồn kho cho phân loại sản phẩm ${productVariant._id}. Có sẵn: ${productVariant.stockQuantity}, Yêu cầu thêm: ${difference}`,
+    //                             })
+    //                         }
+    //                         productVariant.stockQuantity -= difference
+    //                         const product = await Product.findById(productVariant.product)
+    //                         product.stockQuantity -= difference
+    //                         await product.save()
+    //                     } else {
+    //                         // Giảm số lượng đặt hàng, tăng tồn kho
+    //                         productVariant.stockQuantity += Math.abs(difference)
+    //                         const product = await Product.findById(productVariant.product)
+    //                         product.stockQuantity += Math.abs(difference)
+    //                         await product.save()
+    //                     }
 
-                        await productVariant.save()
-                        // Tính lại giá sản phẩm
-                        const currentDate = new Date()
-                        const combo = await PromotionalCombo.findOne({
-                            products: { $in: [productVariant.product] },
-                            startDate: { $lte: currentDate },
-                            endDate: { $gte: currentDate },
-                            limitCombo: { $gt: 0 },
-                        })
-                        order.productsPrice =
-                            order.productsPrice +
-                            handleComboDiscountValue(
-                                {
-                                    variant: productVariant,
-                                    quantity: currentQuantity,
-                                },
-                                newQuantity,
-                                combo
-                            ) -
-                            handleComboDiscountValue(
-                                {
-                                    variant: productVariant,
-                                    quantity: currentQuantity,
-                                },
-                                currentQuantity,
-                                combo
-                            )
-                    }
-                }
+    //                     await productVariant.save()
+    //                     // Tính lại giá sản phẩm
+    //                     const currentDate = new Date()
+    //                     const combo = await PromotionalCombo.findOne({
+    //                         products: { $in: [productVariant.product] },
+    //                         startDate: { $lte: currentDate },
+    //                         endDate: { $gte: currentDate },
+    //                         limitCombo: { $gt: 0 },
+    //                     })
+    //                     order.productsPrice =
+    //                         order.productsPrice +
+    //                         handleComboDiscountValue(
+    //                             {
+    //                                 variant: productVariant,
+    //                                 quantity: currentQuantity,
+    //                             },
+    //                             newQuantity,
+    //                             combo
+    //                         ) -
+    //                         handleComboDiscountValue(
+    //                             {
+    //                                 variant: productVariant,
+    //                                 quantity: currentQuantity,
+    //                             },
+    //                             currentQuantity,
+    //                             combo
+    //                         )
+    //                 }
+    //             }
 
-                // Cập nhật danh sách sản phẩm trong đơn hàng
-                order.products = products.map((item) => ({
-                    product: item.product,
-                    quantity: item.quantity,
-                }))
-            }
+    //             // Cập nhật danh sách sản phẩm trong đơn hàng
+    //             order.products = products.map((item) => ({
+    //                 product: item.product,
+    //                 quantity: item.quantity,
+    //             }))
+    //         }
 
-            // Bước 5: Xử lý cập nhật voucher nếu có
-            let voucherDiscount = 0
-            if (vouchers && Array.isArray(vouchers)) {
-                const validVouchers = []
+    //         // Bước 5: Xử lý cập nhật voucher nếu có
+    //         let voucherDiscount = 0
+    //         if (vouchers && Array.isArray(vouchers)) {
+    //             const validVouchers = []
 
-                for (const voucherItem of vouchers) {
-                    const voucher = await Voucher.findOne({
-                        _id: voucherItem,
-                        isActive: true,
-                        validFrom: { $lte: new Date() },
-                        validUntil: { $gte: new Date() },
-                        usageLimit: { $gt: voucher.used },
-                    })
+    //             for (const voucherItem of vouchers) {
+    //                 const voucher = await Voucher.findOne({
+    //                     _id: voucherItem,
+    //                     isActive: true,
+    //                     validFrom: { $lte: new Date() },
+    //                     validUntil: { $gte: new Date() },
+    //                     usageLimit: { $gt: voucher.used },
+    //                 })
 
-                    if (voucher) {
-                        // Kiểm tra sản phẩm áp dụng voucher
-                        const applicableProductIds = voucher.applicableProducts.map((prod) => prod.product.toString())
-                        const applicableProducts = order.products.filter((item) => applicableProductIds.includes(item.product.toString()))
+    //                 if (voucher) {
+    //                     // Kiểm tra sản phẩm áp dụng voucher
+    //                     const applicableProductIds = voucher.applicableProducts.map((prod) => prod.product.toString())
+    //                     const applicableProducts = order.products.filter((item) => applicableProductIds.includes(item.product.toString()))
 
-                        // Nếu không có sản phẩm nào trong đơn hàng áp dụng voucher, bỏ qua voucher này
-                        if (applicableProducts.length === 0) {
-                            continue
-                        }
+    //                     // Nếu không có sản phẩm nào trong đơn hàng áp dụng voucher, bỏ qua voucher này
+    //                     if (applicableProducts.length === 0) {
+    //                         continue
+    //                     }
 
-                        // Kiểm tra giá trị đơn hàng tối thiểu
-                        if (order.productsPrice >= voucher.minOrderValue) {
-                            validVouchers.push(voucher)
+    //                     // Kiểm tra giá trị đơn hàng tối thiểu
+    //                     if (order.productsPrice >= voucher.minOrderValue) {
+    //                         validVouchers.push(voucher)
 
-                            // Tính giá trị giảm giá
-                            let discount = 0
-                            if (voucher.discountType === 'percentage') {
-                                discount = (order.productsPrice * voucher.discountValue) / 100
-                            } else if (voucher.discountType === 'fixedamount') {
-                                discount = voucher.discountValue
-                                if (voucher.maxDiscountvalue && discount > voucher.maxDiscountvalue) {
-                                    discount = voucher.maxDiscountvalue
-                                }
-                            }
+    //                         // Tính giá trị giảm giá
+    //                         let discount = 0
+    //                         if (voucher.discountType === 'percentage') {
+    //                             discount = (order.productsPrice * voucher.discountValue) / 100
+    //                         } else if (voucher.discountType === 'fixedamount') {
+    //                             discount = voucher.discountValue
+    //                             if (voucher.maxDiscountvalue && discount > voucher.maxDiscountvalue) {
+    //                                 discount = voucher.maxDiscountvalue
+    //                             }
+    //                         }
 
-                            voucherDiscount += discount
-                        }
-                    }
-                }
+    //                         voucherDiscount += discount
+    //                     }
+    //                 }
+    //             }
 
-                order.vouchers = validVouchers
-            }
+    //             order.vouchers = validVouchers
+    //         }
 
-            // Bước 6: Tính lại giá sản phẩm, giá vận chuyển và tổng giá
-            order.totalPrice = order.productsPrice + order.shippingPrice - voucherDiscount
+    //         // Bước 6: Tính lại giá sản phẩm, giá vận chuyển và tổng giá
+    //         order.totalPrice = order.productsPrice + order.shippingPrice - voucherDiscount
 
-            // Bước 7: Lưu đơn hàng đã cập nhật
-            const updatedOrder = await order.save()
+    //         // Bước 7: Lưu đơn hàng đã cập nhật
+    //         const updatedOrder = await order.save()
 
-            // Bước 8: Populate thông tin chi tiết
-            const populatedOrder = await OrderProduct.findById(updatedOrder._id)
-                .populate({
-                    path: 'products.product',
-                    model: 'product_variant',
-                    populate: {
-                        path: 'product',
-                        model: 'products',
-                    },
-                })
-                .populate('shippingAddress')
-                .populate('user')
-                .populate('vouchers')
+    //         // Bước 8: Populate thông tin chi tiết
+    //         const populatedOrder = await OrderProduct.findById(updatedOrder._id)
+    //             .populate({
+    //                 path: 'products.product',
+    //                 model: 'product_variant',
+    //                 populate: {
+    //                     path: 'product',
+    //                     model: 'products',
+    //                 },
+    //             })
+    //             .populate('shippingAddress')
+    //             .populate('user')
+    //             .populate('vouchers')
 
-            res.status(200).json({
-                message: 'Đơn hàng đã cập nhật thành công',
-                order: populatedOrder,
-            })
-        } catch (e) {
-            next(e)
-        }
-    }
+    //         res.status(200).json({
+    //             message: 'Đơn hàng đã cập nhật thành công',
+    //             order: populatedOrder,
+    //         })
+    //     } catch (e) {
+    //         next(e)
+    //     }
+    // }
     // [POST] /order/create-order-from-guest
     async createOrderFromGuest(req, res, next) {
         const session = await mongoose.startSession()

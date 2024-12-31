@@ -205,6 +205,25 @@ class ProductController {
             next(err)
         }
     }
+    // [GET] /product/best-seller
+    async getBestSeller(req, res, next) {
+        try {
+            const { limit = 8 } = req.query
+            const products = await Product.find({})
+                .sort({ soldQuantity: -1 })
+                .limit(limit)
+                .populate('variants')
+                .populate({
+                    path: 'categories',
+                    populate: {
+                        path: 'parentCategory',
+                    },
+                })
+            res.status(200).json(products)
+        } catch (err) {
+            next(err)
+        }
+    }
     // [GET] /product-out-of-stock
     async getProductOutOfStock(req, res, next) {
         try {
