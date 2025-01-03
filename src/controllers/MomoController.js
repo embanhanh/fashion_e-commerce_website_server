@@ -277,16 +277,16 @@ class MomoController {
                         }
                     })
                     await user.save()
-                    // const populatedOrder = await OrderProduct.findById(savedOrder._id)
-                    //     .populate('user')
-                    //     .populate({
-                    //         path: 'products.product',
-                    //         populate: {
-                    //             path: 'product',
-                    //         },
-                    //     })
-                    //     .populate('shippingAddress')
-                    // sendOrderEmailAsync(populatedOrder, 'create')
+                    const populatedOrder = await OrderProduct.findById(savedOrder._id)
+                        .populate('user')
+                        .populate({
+                            path: 'products.product',
+                            populate: {
+                                path: 'product',
+                            },
+                        })
+                        .populate('shippingAddress')
+                    sendOrderEmailAsync(populatedOrder, 'create')
                 }
                 res.status(200).json({ statusCode: 200, message: 'Thanh toán thành công' })
             } else {
@@ -377,16 +377,16 @@ class MomoController {
                     )
                     await batch.commit()
                     // Send email
-                    // const populatedOrder = await OrderProduct.findById(savedOrder._id)
-                    //     .populate('user')
-                    //     .populate({
-                    //         path: 'products.product',
-                    //         populate: {
-                    //             path: 'product',
-                    //         },
-                    //     })
-                    //     .populate('shippingAddress')
-                    // sendOrderEmailAsync(populatedOrder, 'create')
+                    const populatedOrder = await OrderProduct.findById(savedOrder._id)
+                        .populate('user')
+                        .populate({
+                            path: 'products.product',
+                            populate: {
+                                path: 'product',
+                            },
+                        })
+                        .populate('shippingAddress')
+                    sendOrderEmailAsync(populatedOrder, 'create')
                 }
                 res.status(200).json({ statusCode: 200, message: 'Thanh toán thành công' })
             } else {

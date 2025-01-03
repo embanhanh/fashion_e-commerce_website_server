@@ -225,6 +225,15 @@ p{
 
 const orderStatusTemplate = (order, status) => {
     const formatPrice = (price) => price.toLocaleString('vi-VN') + 'đ'
+    const formatDate = (date) => new Date(date).toLocaleDateString('vi-VN')
+
+    const paymentMethod = order.paymentMethod === 'paymentUponReceipt' ? 'Thanh toán khi nhận hàng' : 'Chuyển khoản ngân hàng'
+
+    const shippingMethod = {
+        basic: 'Giao hàng tiêu chuẩn',
+        fast: 'Giao hàng nhanh',
+        express: 'Giao hàng hỏa tốc',
+    }[order.shippingMethod]
 
     const statusInfo = {
         processing: {

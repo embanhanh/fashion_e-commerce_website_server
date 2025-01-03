@@ -6,7 +6,8 @@ class WebhookController {
         try {
             const { sessionInfo } = req.body
             const { parameters } = sessionInfo
-            let conditions = { isActive: true }
+            console.log(parameters)
+            let conditions = {}
             if (!conditions.$and) {
                 conditions.$and = []
             }
@@ -62,11 +63,11 @@ class WebhookController {
                         let matchColor = true
 
                         if (parameters.size && parameters.size.length > 0) {
-                            matchSize = parameters.size.some((s) => !variant.size || variant.size.toLowerCase().includes(s.toLowerCase()))
+                            matchSize = parameters.size.some((s) => !variant.size || variant.size.toLowerCase().includes(s.toLowerCase().trim()))
                         }
 
                         if (parameters.color && parameters.color.length > 0) {
-                            matchColor = parameters.color.some((c) => !variant.color || variant.color.toLowerCase().includes(c.toLowerCase()))
+                            matchColor = parameters.color.some((c) => !variant.color || variant.color.toLowerCase().includes(c.toLowerCase().trim()))
                         }
 
                         return matchSize && matchColor

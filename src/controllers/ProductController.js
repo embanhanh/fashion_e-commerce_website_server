@@ -569,13 +569,14 @@ class ProductController {
 
             if (!ratingDoc.exists) {
                 await ratingRef.set({ ratings: [newRating] })
+                await Product.findByIdAndUpdate(product_id, { rating: parseInt(rating) })
             } else {
                 await ratingRef.update({ ratings: admin.firestore.FieldValue.arrayUnion(newRating) })
+                const ratings = ratingDoc.data().ratings
+                const averageRating = (ratings.reduce((sum, rating) => sum + rating.rating, 0) + Number(rating)) / (ratings.length + 1)
+                await Product.findByIdAndUpdate(product_id, { rating: averageRating })
             }
             // Tính đánh giá trung bình của sản phẩm và lưu lại
-            const ratings = ratingDoc.data().ratings
-            const averageRating = (ratings.reduce((sum, rating) => sum + rating.rating, 0) + Number(rating)) / (ratings.length + 1)
-            await Product.findByIdAndUpdate(product_id, { rating: averageRating })
 
             res.status(200).json({ message: 'Đánh giá sản phẩm thành công' })
         } catch (err) {
