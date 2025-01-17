@@ -5,15 +5,35 @@ const User = require('../models/UserModel')
 const mongoose = require('mongoose')
 const { bucket, admin } = require('../configs/FirebaseConfig')
 const { validateFile, uploadFilesToFirebase } = require('../util/FirebaseUtil')
+const vision = require('@google-cloud/vision')
+const path = require('path')
+const { Translate } = require('@google-cloud/translate').v2
+require('dotenv').config()
 
 class ProductController {
     // [GET] /product
     async getAllProduct(req, res, next) {
         try {
-            const { page = 1, limit = 1, category, priceRange, color, size, sort, stockQuantity, soldQuantity, search, rating, brand } = req.query
-            const pipeline = []
+            const {
+                page = 1,
+                limit = 1,
+                category,
+                priceRange,
+                color,
+                size,
+                sort,
+                stockQuantity,
+                soldQuantity,
+                search,
+                rating,
+                brand,
+                searchImageLabels,
+            } = req.query
 
+            const pipeline = []
             const conditions = []
+
+            // Xử lý tìm kiếm bằng text
             if (search) {
                 const searchRegex = new RegExp(search, 'i')
                 conditions.push({
@@ -21,6 +41,32 @@ class ProductController {
                 })
             }
 
+            // Xử lý tìm kiếm bằng hình ảnh
+            if (searchImageLabels) {
+                try {
+                    // Đảm bảo searchImageLabels là chuỗi JSON hợp lệ
+                    const labels =
+                        typeof searchImageLabels === 'string'
+                            ? JSON.parse(searchImageLabels)
+                            : Array.isArray(searchImageLabels)
+                            ? searchImageLabels
+                            : []
+
+                    if (labels.length > 0) {
+                        conditions.push({
+                            $or: [
+                                { name: { $regex: labels.join('|'), $options: 'i' } },
+                                { description: { $regex: labels.join('|'), $options: 'i' } },
+                            ],
+                        })
+                    }
+                } catch (error) {
+                    console.error('Error parsing searchImageLabels:', error)
+                    // Không thêm điều kiện tìm kiếm nếu có lỗi parse
+                }
+            }
+
+            // Các điều kiện lọc khác giữ nguyên
             if (category && category.length > 0) {
                 conditions.push({
                     categories: {
@@ -76,12 +122,9 @@ class ProductController {
                 }
             }
 
+            // Kết hợp tất cả điều kiện
             if (conditions.length > 0) {
-                pipeline.push({
-                    $match: {
-                        $and: conditions,
-                    },
-                })
+                pipeline.push({ $match: { $and: conditions } })
             }
 
             pipeline.push({
@@ -608,6 +651,102 @@ class ProductController {
             next(err)
         }
     }
+
+    // [POST] /product/search-by-image
+    async searchByImage(req, res, next) {
+        try {
+            if (!req.file) {
+                return res.status(400).json({ message: 'Không tìm thấy file hình ảnh' })
+            }
+
+            // Khởi tạo Vision và Translate client
+            const visionClient = new vision.ImageAnnotatorClient({
+                keyFilename: path.join(__dirname, `${process.env.GOOGLE_APPLICATION_CREDENTIALS}`),
+            })
+            const translateClient = new Translate({
+                keyFilename: path.join(__dirname, `${process.env.GOOGLE_APPLICATION_CREDENTIALS}`),
+            })
+
+            // Upload và phân tích ảnh
+            const fileName = `search-images/${Date.now()}_${req.file.originalname}`
+            const file = bucket.file(fileName)
+            await file.save(req.file.buffer, {
+                metadata: { contentType: req.file.mimetype },
+            })
+            const [searchImageUrl] = await file.getSignedUrl({
+                action: 'read',
+                expires: '03-01-2500',
+            })
+
+            // Phân tích nhãn và dịch
+            const [labelResult] = await visionClient.labelDetection(searchImageUrl)
+            const englishLabels = labelResult.labelAnnotations.map((label) => label.description.toLowerCase())
+            const [translations] = await translateClient.translate(englishLabels, {
+                from: 'en',
+                to: 'vi',
+            })
+            const vietnameseLabels = translations.map((t) => t.toLowerCase())
+            const relatedKeywords = new Set([...vietnameseLabels])
+
+            // Thêm từ khóa liên quan
+            vietnameseLabels.forEach((label) => {
+                if (label.includes('áo')) {
+                    relatedKeywords.add('áo')
+                    relatedKeywords.add('áo thun')
+                    relatedKeywords.add('áo sơ mi')
+                    relatedKeywords.add('áo khoác')
+                }
+                if (label.includes('quần')) {
+                    relatedKeywords.add('quần')
+                    relatedKeywords.add('quần jean')
+                    relatedKeywords.add('quần tây')
+                    relatedKeywords.add('quần short')
+                }
+                if (label.includes('váy') || label.includes('đầm')) {
+                    relatedKeywords.add('váy')
+                    relatedKeywords.add('đầm')
+                    relatedKeywords.add('váy đầm')
+                }
+                // Thêm các biến thể màu sắc
+                if (label.includes('màu')) {
+                    const color = label.replace('màu ', '')
+                    relatedKeywords.add(color)
+                }
+            })
+
+            // Xóa ảnh tìm kiếm
+            await file.delete()
+
+            // Trả về labels để client có thể sử dụng với getAllProducts
+            res.status(200).json({
+                labels: Array.from(relatedKeywords),
+            })
+        } catch (err) {
+            next(err)
+        }
+    }
+}
+
+// Hàm tính độ tương đồng màu sắc
+function calculateColorSimilarity(colors1, colors2) {
+    let totalSimilarity = 0
+    let totalWeight = 0
+
+    colors1.forEach((color1) => {
+        colors2.forEach((color2) => {
+            const colorDistance =
+                Math.sqrt(Math.pow(color1.red - color2.red, 2) + Math.pow(color1.green - color2.green, 2) + Math.pow(color1.blue - color2.blue, 2)) /
+                Math.sqrt(195075) // Chuẩn hóa khoảng cách (255^2 * 3)
+
+            const similarity = 1 - colorDistance
+            const weight = color1.score * color2.score
+
+            totalSimilarity += similarity * weight
+            totalWeight += weight
+        })
+    })
+
+    return totalWeight > 0 ? totalSimilarity / totalWeight : 0
 }
 
 module.exports = new ProductController()

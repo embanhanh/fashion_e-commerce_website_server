@@ -14,4 +14,5 @@ router.delete('/delete/:product_name', authenticateToken, authorizeRole(['admin'
 router.post('/delete-many', authenticateToken, authorizeRole(['admin']), productController.deleteManyProducts)
 router.post('/rating/:product_id', authenticateToken, upload.array('files', 5), productController.ratingProduct)
 router.get('/', productController.getAllProduct)
+router.post('/search-by-image', upload.single('image'), productController.searchByImage)
 module.exports = router
