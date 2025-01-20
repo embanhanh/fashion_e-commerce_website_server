@@ -725,6 +725,24 @@ class ProductController {
             next(err)
         }
     }
+
+    getAllProducts = async (req, res) => {
+        try {
+            const products = await Product.find({ isActive: true }).populate('categories').populate('variants').lean()
+
+            if (!products || products.length === 0) {
+                return res.status(404).json({ message: 'Không tìm thấy sản phẩm nào' })
+            }
+
+            res.json(products)
+        } catch (error) {
+            console.error('Lỗi khi lấy tất cả sản phẩm:', error)
+            res.status(500).json({
+                message: 'Có lỗi xảy ra khi tải danh sách sản phẩm',
+                error: error.message,
+            })
+        }
+    }
 }
 
 // Hàm tính độ tương đồng màu sắc
