@@ -58,7 +58,7 @@ class WebhookController {
 
             if ((parameters.size && parameters.size.length > 0) || (parameters.color && parameters.color.length > 0)) {
                 products = products.filter((product) => {
-                    return product.variants.some((variant) => {
+                    const matchingVariants = product.variants.filter((variant) => {
                         let matchSize = true
                         let matchColor = true
 
@@ -67,11 +67,19 @@ class WebhookController {
                         }
 
                         if (parameters.color && parameters.color.length > 0) {
-                            matchColor = parameters.color.some((c) => !variant.color || variant.color.toLowerCase().includes(c.toLowerCase().trim()))
+                            matchColor = parameters.color.some(
+                                (c) => !variant.color || variant.color.toLowerCase().includes(c.replace('màu', '').toLowerCase().trim())
+                            )
                         }
 
                         return matchSize && matchColor
                     })
+
+                    if (matchingVariants.length > 0) {
+                        product.matchingVariants = matchingVariants
+                        return true
+                    }
+                    return false
                 })
             }
 
@@ -96,17 +104,50 @@ class WebhookController {
                 response.fulfillmentResponse.messages.push({
                     payload: {
                         richContent: [
-                            products.slice(0, 5).map((product) => ({
-                                type: 'info',
-                                title: product.name,
-                                subtitle: `💰 ${product.originalPrice.toLocaleString()}đ${product.discount > 0 ? ` (-${product.discount}%)` : ''}`,
-                                image: {
-                                    src: {
-                                        rawUrl: product.urlImage[0] || 'default-image-url',
-                                    },
-                                },
-                                actionLink: `/products/${product.slug}`,
-                            })),
+                            [
+                                ...products.slice(0, 5).flatMap((product) => {
+                                    const firstMatchingVariant = product.matchingVariants?.[0] || product.variants[0]
+                                    const variantPrice = firstMatchingVariant?.price || 0
+                                    const finalPrice = variantPrice
+
+                                    return [
+                                        {
+                                            type: 'info',
+                                            title: product.name,
+                                            subtitle: `💰 ${finalPrice.toLocaleString()}đ${product.discount > 0 ? ` (-${product.discount}%)` : ''}\n${
+                                                firstMatchingVariant
+                                                    ? `Size: ${firstMatchingVariant.size || 'N/A'} - Màu: ${firstMatchingVariant.color || 'N/A'}`
+                                                    : ''
+                                            }`,
+                                            image: {
+                                                src: {
+                                                    rawUrl: firstMatchingVariant?.imageUrl || product.urlImage[0] || 'default-image-url',
+                                                },
+                                            },
+                                            actionLink: `/products/${product.slug}`,
+                                        },
+                                        {
+                                            type: 'button',
+                                            text: 'Thêm vào giỏ hàng',
+                                            icon: {
+                                                type: 'shopping_cart',
+                                                color: '#0b6477',
+                                            },
+                                            mode: 'blocking',
+                                            event: {
+                                                event: {
+                                                    variantId: firstMatchingVariant?._id,
+                                                    productName: product.name,
+                                                    color: firstMatchingVariant?.color || 'N/A',
+                                                    size: firstMatchingVariant?.size || 'N/A',
+                                                    price: finalPrice,
+                                                    image: firstMatchingVariant?.imageUrl || product.urlImage[0],
+                                                },
+                                            },
+                                        },
+                                    ]
+                                }),
+                            ],
                         ],
                     },
                 })
