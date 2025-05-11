@@ -237,6 +237,7 @@ class UserController {
                 .populate('shippingAddress')
                 .populate('user')
                 .populate('vouchers.voucher')
+            console.log(orders)
             return res.status(200).json(orders)
         } catch (err) {
             next(err)

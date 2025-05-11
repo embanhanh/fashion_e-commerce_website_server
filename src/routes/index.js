@@ -10,6 +10,8 @@ const voucherRouter = require('./VoucherRoute')
 const promotionalComboRouter = require('./PromotionalComboRoute')
 const webhookRouter = require('./WebhookRoute')
 const momoRouter = require('./MomoRoute')
+const vnpayRouter = require('./VNPayRoute')
+const zaloPayRouter = require('./ZaloPayRoute')
 function route(app) {
     app.use('/user', userRouter)
     app.use('/product', productRouter)
@@ -22,6 +24,8 @@ function route(app) {
     app.use('/promotional-combo', promotionalComboRouter)
     app.use('/webhook', webhookRouter)
     app.use('/momo', momoRouter)
+    app.use('/vnpay', vnpayRouter)
+    app.use('/zalo-pay', zaloPayRouter)
 }
 
 module.exports = route

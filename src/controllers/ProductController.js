@@ -9,8 +9,12 @@ const vision = require('@google-cloud/vision')
 const path = require('path')
 const { Translate } = require('@google-cloud/translate').v2
 require('dotenv').config()
+const redisClient = require('../configs/RedisConfig')
+const axios = require('axios')
+const fastApi = 'http://localhost:8000/'
 
 class ProductController {
+
     // [GET] /product
     async getAllProduct(req, res, next) {
         try {
@@ -49,8 +53,8 @@ class ProductController {
                         typeof searchImageLabels === 'string'
                             ? JSON.parse(searchImageLabels)
                             : Array.isArray(searchImageLabels)
-                            ? searchImageLabels
-                            : []
+                                ? searchImageLabels
+                                : []
 
                     if (labels.length > 0) {
                         conditions.push({
@@ -145,21 +149,21 @@ class ProductController {
                                 $or: [
                                     ...(color?.length
                                         ? [
-                                              {
-                                                  color: {
-                                                      $in: color.map((c) => new RegExp(c, 'i')),
-                                                  },
-                                              },
-                                          ]
+                                            {
+                                                color: {
+                                                    $in: color.map((c) => new RegExp(c, 'i')),
+                                                },
+                                            },
+                                        ]
                                         : []),
                                     ...(size?.length
                                         ? [
-                                              {
-                                                  size: {
-                                                      $in: size,
-                                                  },
-                                              },
-                                          ]
+                                            {
+                                                size: {
+                                                    $in: size,
+                                                },
+                                            },
+                                        ]
                                         : []),
                                 ],
                             },
@@ -239,6 +243,7 @@ class ProductController {
             const totalResult = await Product.aggregate(countPipeline)
             const total = totalResult.length > 0 ? totalResult[0].total : 0
 
+
             res.status(200).json({
                 products,
                 totalPages: Math.ceil(total / Number(limit)),
@@ -248,6 +253,7 @@ class ProductController {
             next(err)
         }
     }
+
     // [GET] /product/best-seller
     async getBestSeller(req, res, next) {
         try {
@@ -267,6 +273,7 @@ class ProductController {
             next(err)
         }
     }
+
     // [GET] /product-out-of-stock
     async getProductOutOfStock(req, res, next) {
         try {
@@ -276,6 +283,7 @@ class ProductController {
             next(err)
         }
     }
+
     // [GET] /product/:product_name
     async getProductBySlug(req, res, next) {
         try {
@@ -296,6 +304,7 @@ class ProductController {
             next(err)
         }
     }
+
     // [POST] /product/create
     async createProduct(req, res, next) {
         try {
@@ -375,6 +384,7 @@ class ProductController {
             next(err)
         }
     }
+
     // [PUT] /product/edit/:product_name
     async updateProduct(req, res, next) {
         const { product_name } = req.params
@@ -469,6 +479,7 @@ class ProductController {
             next(err)
         }
     }
+
     // [DELETE] /product/delete/:product_name
     async deleteProduct(req, res, next) {
         const { product_name } = req.params
@@ -482,6 +493,7 @@ class ProductController {
             next(err)
         }
     }
+
     // [POST] /product/delete-many
     async deleteManyProducts(req, res, next) {
         const { productSlugs } = req.body
@@ -522,6 +534,7 @@ class ProductController {
             next(err)
         }
     }
+
     //[POST] /product/rating/:product_id
     async ratingProduct(req, res, next) {
         const { product_id } = req.params
@@ -726,6 +739,118 @@ class ProductController {
         }
     }
 
+
+    // [GET] /product/recommend-content-based/:product_slug
+    async recommendContentBased(req, res, next) {
+        try {
+            const { product_slug } = req.params
+            const top_n = 6
+            const response = await axios.get(`${fastApi}content_based/${product_slug}?top_k=${top_n}`)
+            const products = []
+            for (const product of response.data.recommendations) {
+                const foundProduct = await Product.findOne({ _id: product })
+                products.push(foundProduct)
+            }
+            res.status(200).json(products)
+        } catch (err) {
+            if (err.response) {
+                res.status(err.response.status).json({
+                    error: err.response.data.detail || 'Error from recommendation API'
+                });
+            } else {
+                res.status(500).json({
+                    error: 'Failed to fetch recommendations from FastAPI'
+                });
+            }
+        }
+    }
+
+    // [GET] /product/recommend-collaborative
+    async recommendCollaborative(req, res, next) {
+        try {
+            const user = req.user
+            const idUser = user.data._id
+            const top_n = 8
+            const response = await axios.get(`${fastApi}collaborative/${idUser}?top_n=${top_n}`)
+            const products = []
+            for (const product of response.data.recommendations) {
+                const foundProduct = await ProductVariant.findOne({ _id: product }).populate({
+                    path: 'product',
+                    model: 'products',
+                })
+                if (foundProduct && foundProduct.product !== null) {
+                    products.push(foundProduct.product)
+                }
+            }
+            res.status(200).json(products)
+        } catch (err) {
+            next(err)
+        }
+    }
+
+    // [POST] /product/recommend-hybrid
+    async recommendHybrid(req, res, next) {
+        try {
+            const user = req.user
+            const idUser = user.data._id
+            const { product_slug } = req.body
+
+            let response
+            try {
+                const requestData = {
+                    user_id: idUser,
+                    top_k: product_slug ? 6 : 8  // top_k = 6 khi có product_slug, 8 khi không có
+                }
+
+                if (product_slug) {
+                    requestData.product_slug = product_slug
+                }
+
+                response = await axios({
+                    method: 'post',
+                    url: `${fastApi}hybrid`,
+                    data: requestData,
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                })
+
+            } catch (apiError) {
+                console.error('FastAPI Error:', apiError.response?.data || apiError.message)
+                return res.status(500).json({
+                    error: 'Lỗi từ hệ thống gợi ý',
+                    details: apiError.response?.data || apiError.message
+                })
+            }
+
+            const products = []
+            for (const product of response.data.recommendations) {
+                // Kiểm tra xem product có phải là ProductVariant không
+                let foundProduct = await ProductVariant.findOne({ _id: product }).populate({
+                    path: 'product',
+                    model: 'products',
+                })
+
+                if (foundProduct && foundProduct.product !== null) {
+                    products.push(foundProduct.product)
+                } else {
+                    // Nếu không phải ProductVariant, tìm trong Product
+                    foundProduct = await Product.findOne({ _id: product })
+                    if (foundProduct) {
+                        products.push(foundProduct)
+                    }
+                }
+            }
+            res.status(200).json(products)
+        } catch (err) {
+            console.error('Server Error:', err)
+            next(err)
+        }
+    }
+
+
+
+
     getAllProducts = async (req, res) => {
         try {
             const products = await Product.find({ isActive: true }).populate('categories').populate('variants').lean()
@@ -743,6 +868,7 @@ class ProductController {
             })
         }
     }
+
 }
 
 // Hàm tính độ tương đồng màu sắc

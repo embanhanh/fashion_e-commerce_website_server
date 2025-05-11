@@ -1,6 +1,7 @@
 const orderConfirmationTemplate = (order) => {
     const formatPrice = (price) => price.toLocaleString('vi-VN') + 'đ'
     const formatDate = (date) => new Date(date).toLocaleDateString('vi-VN')
+    console.log(order)
 
     const paymentMethod = order.paymentMethod === 'paymentUponReceipt' ? 'Thanh toán khi nhận hàng' : 'Chuyển khoản ngân hàng'
 

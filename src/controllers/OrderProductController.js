@@ -133,10 +133,11 @@ class OrderProductController {
                 shippingMethod,
                 transferOption,
             } = req.body
-
+            console.log(products)
             // Kiểm tra và cập nhật số lượng tồn kho
             for (const item of products) {
                 const productVariant = await ProductVariant.findById(item.product).session(session)
+                console.log(productVariant)
                 if (!productVariant) {
                     await session.abortTransaction()
                     return res.status(400).json({ message: `Product variant ${item.product} not found.` })
@@ -333,15 +334,14 @@ class OrderProductController {
                         notifications.push({
                             userId: updatedOrder.user.toString(),
                             orderId: updatedOrder._id.toString(),
-                            message: `Đơn hàng ${updatedOrder._id} của bạn đã ${
-                                status === 'processing'
+                            message: `Đơn hàng ${updatedOrder._id} của bạn đã ${status === 'processing'
                                     ? 'được xác nhận'
                                     : status === 'delivering'
-                                    ? 'được giao'
-                                    : status === 'delivered'
-                                    ? 'được giao hàng thành công'
-                                    : 'bị hủy'
-                            }`,
+                                        ? 'được giao'
+                                        : status === 'delivered'
+                                            ? 'được giao hàng thành công'
+                                            : 'bị hủy'
+                                }`,
                             createdAt: new Date(),
                             expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
                             read: false,
