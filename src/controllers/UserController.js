@@ -11,6 +11,7 @@ const VerificationCode = require('../models/VerificationCode')
 const { bucket } = require('../configs/FirebaseConfig')
 const { sendVerificationEmail } = require('../configs/EmailConfig')
 const mongoose = require('mongoose')
+const admin = require('firebase-admin')
 
 const { verifyFirebaseToken, gennerateAccessToken, gennerateRefreshToken } = require('../util/TokenUtil')
 
@@ -51,12 +52,14 @@ class UserController {
             next(err)
         }
     }
-    // [POST] /user/login/facebook || /user/login/google
+    // [POST] /user/login/facebook || /user/login/google || /user/login/phone
     async loginWithFirebase(req, res, next) {
         try {
             const { token } = req.body
+            console.log('token', token)
 
             const result = await verifyFirebaseToken(token)
+            console.log('result', result)
             if (result.success) {
                 let user = await User.findOne({ id: result.user.uid })
                 if (user && user.isBlocked) {
@@ -792,6 +795,83 @@ class UserController {
             next(err)
         } finally {
             session.endSession()
+        }
+    }
+
+    // [GET] /user/account/coins
+    async getCoinsUser(req, res, next) {
+        try {
+            const user = req.user
+            const idUser = user.data._id
+            const userFind = await User.findOne({ _id: idUser })
+            if (!userFind) {
+                return res.status(404).json({ message: 'No user founded.' })
+            }
+            return res.status(200).json({ coins: userFind.coins, lastCheckinDate: userFind.lastCheckinDate, lastUpdateDate: userFind.lastUpdateDate })
+        } catch (err) {
+            next(err)
+        }
+    }
+
+    // [PUT] /user/account/coins/update-coins
+    async updateCoinsUser(req, res, next) {
+        try {
+            const user = req.user
+            const idUser = user.data._id
+            const { coins } = req.body
+            const userFind = await User.findOne({ _id: idUser })
+            if (!userFind) {
+                return res.status(404).json({ message: 'No user founded.' })
+            }
+            userFind.coins = coins
+            userFind.lastUpdateDate = new Date()
+            await userFind.save()
+            return res.status(200).json({ coins: userFind.coins, lastUpdateDate: userFind.lastUpdateDate })
+        } catch (err) {
+            next(err)
+        }
+    }
+
+    // [PUT] /user/account/coins/checkin
+    async checkinCoins(req, res, next) {
+        try {
+            const user = req.user
+            const idUser = user.data._id
+            const userFind = await User.findOne({ _id: idUser })
+            if (!userFind) {
+                return res.status(404).json({ message: 'No user founded.' })
+            }
+            const today = new Date().toDateString()
+            if (userFind.lastCheckinDate && userFind.lastCheckinDate.toDateString() === today) {
+                return res.status(400).json({ message: 'Bạn đã điểm danh hôm nay rồi' })
+            }
+            const currentDay = new Date().getDate()
+            const reward = 100 // Giả sử phần thưởng là 100 coins cho mỗi ngày
+            userFind.coins += reward
+            userFind.lastCheckinDate = new Date()
+            userFind.lastUpdateDate = new Date()
+            await userFind.save()
+            return res.status(200).json({ coins: userFind.coins, lastCheckinDate: userFind.lastCheckinDate, lastUpdateDate: userFind.lastUpdateDate })
+        } catch (err) {
+            next(err)
+        }
+    }
+
+    // [PUT] /user/account/coins/update-last-checkin
+    async updateLastCheckin(req, res, next) {
+        try {
+            const user = req.user
+            const idUser = user.data._id
+            const userFind = await User.findOne({ _id: idUser })
+            if (!userFind) {
+                return res.status(404).json({ message: 'No user founded.' })
+            }
+            userFind.lastCheckinDate = new Date()
+            userFind.lastUpdateDate = new Date()
+            await userFind.save()
+            return res.status(200).json({ lastCheckinDate: userFind.lastCheckinDate, lastUpdateDate: userFind.lastUpdateDate })
+        } catch (err) {
+            next(err)
         }
     }
 }

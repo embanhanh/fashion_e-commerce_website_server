@@ -27,6 +27,9 @@ const User = new Schema(
         ],
         blockReasons: [{ type: String }],
         favoriteProducts: [{ type: Schema.Types.ObjectId, ref: 'product_variant' }],
+        coins: { type: Number, default: 0 },
+        lastCheckinDate: { type: Date, default: null },
+        lastUpdateDate: { type: Date, default: null },
     },
     { timestamps: true }
 )

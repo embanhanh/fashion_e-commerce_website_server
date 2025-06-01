@@ -11,5 +11,6 @@ router.delete('/remove/:voucherId', authenticateToken, authorizeRole(['admin']),
 router.post('/delete-many', authenticateToken, authorizeRole(['admin']), voucherController.deleteManyVoucher)
 router.put('/give/:userId', authenticateToken, authorizeRole(['admin']), voucherController.giveVoucher)
 router.put('/give-many', authenticateToken, authorizeRole(['admin']), voucherController.giveManyVoucher)
+router.get('/applicable', authenticateToken, voucherController.getApplicableVouchers)
 router.get('/', voucherController.getVoucher)
 module.exports = router

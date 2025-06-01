@@ -56,6 +56,8 @@ class WebhookController {
 
             let products = await Product.find(conditions).populate('variants').populate('categories')
 
+            // console.log(products)
+
             if ((parameters.size && parameters.size.length > 0) || (parameters.color && parameters.color.length > 0)) {
                 products = products.filter((product) => {
                     const matchingVariants = product.variants.filter((variant) => {
@@ -152,6 +154,7 @@ class WebhookController {
                     },
                 })
             }
+            console.log(JSON.stringify(response, null, 2))
             res.status(200).json(response)
         } catch (error) {
             console.error('Webhook error:', error)
