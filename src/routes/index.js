@@ -12,6 +12,7 @@ const webhookRouter = require('./WebhookRoute')
 const momoRouter = require('./MomoRoute')
 const vnpayRouter = require('./VNPayRoute')
 const zaloPayRouter = require('./ZaloPayRoute')
+const chatBotRouter = require('./ChatBotRoute')
 function route(app) {
     app.use('/user', userRouter)
     app.use('/product', productRouter)
@@ -26,6 +27,7 @@ function route(app) {
     app.use('/momo', momoRouter)
     app.use('/vnpay', vnpayRouter)
     app.use('/zalo-pay', zaloPayRouter)
+    app.use('/chatbot', chatBotRouter)
 }
 
 module.exports = route
